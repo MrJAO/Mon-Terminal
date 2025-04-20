@@ -12,18 +12,22 @@ router.post('/', (req, res) => {
     return res.status(400).json({ success: false, response: 'Invalid input' })
   }
 
-  const sanitized = input.replace(/[^a-zA-Z0-9\s._:-]/g, '') // 🧼 Prevent special chars
+  const sanitized = input.replace(/[^a-zA-Z0-9\s._:-]/g, '') // Prevent special chars
 
-  // Absolute path to ensure agent.py is found in production (Render)
-  const agentPath = path.resolve('agent.py')
+  const agentPath = path.resolve('agent.py') // Absolute path in case Render deploy is nested
 
-  exec(`python3 ${agentPath} ${sanitized}`, (err, stdout, stderr) => {
+  exec(`python3 ${agentPath} ${sanitized}`, { timeout: 5000 }, (err, stdout, stderr) => {
     if (err) {
-      console.error('❌ Mon Terminal error:', stderr)
-      return res.json({ success: false, response: 'Mon Terminal encountered an error.' })
+      console.error('❌ Mon Terminal error:', stderr || err.message)
+      return res.json({ success: false, response: `❌ ${stderr || err.message}` })
     }
 
-    res.json({ success: true, response: stdout.trim() })
+    const output = stdout.trim()
+    if (!output) {
+      return res.json({ success: false, response: '❌ No response from agent.py' })
+    }
+
+    res.json({ success: true, response: output })
   })
 })
 
