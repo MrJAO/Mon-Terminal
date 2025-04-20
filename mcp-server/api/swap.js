@@ -36,12 +36,10 @@ function resolveAddr(input) {
   return TOKEN_ADDRESSES[sym] || input
 }
 
-// ✅ Test route
 router.get('/test', (req, res) => {
   res.json({ status: '✅ Swap route is working' })
 })
 
-// POST /api/swap/confirm/last
 router.post('/confirm/last', async (req, res) => {
   const { sender } = req.body
   if (!sender) {
@@ -68,12 +66,12 @@ router.post('/confirm/last', async (req, res) => {
     let json
     try {
       json = JSON.parse(text)
-    } catch (err) {
+    } catch {
       console.error('❌ Failed to parse Monorail JSON:', text)
       return res.status(500).json({
         success: false,
         error: 'Invalid JSON returned from Monorail API.',
-        raw: text,
+        raw: text
       })
     }
 
@@ -81,7 +79,7 @@ router.post('/confirm/last', async (req, res) => {
       return res.status(resp.status).json({ success: false, error: json?.error || 'Monorail API error.' })
     }
 
-    if (!json.transaction || !json.transaction.rawTransaction) {
+    if (!json.transaction?.rawTransaction) {
       return res.status(400).json({ success: false, error: 'Missing rawTransaction in response.' })
     }
 
@@ -91,7 +89,6 @@ router.post('/confirm/last', async (req, res) => {
   }
 })
 
-// POST /api/swap/confirm
 router.post('/confirm', async (req, res) => {
   let { from, to, amount, sender } = req.body
   if (!from || !to || !amount || !sender) {
@@ -116,12 +113,12 @@ router.post('/confirm', async (req, res) => {
     let json
     try {
       json = JSON.parse(text)
-    } catch (err) {
+    } catch {
       console.error('❌ Failed to parse Monorail JSON:', text)
       return res.status(500).json({
         success: false,
         error: 'Invalid JSON returned from Monorail API.',
-        raw: text,
+        raw: text
       })
     }
 
@@ -129,7 +126,7 @@ router.post('/confirm', async (req, res) => {
       return res.status(resp.status).json({ success: false, error: json?.error || 'Monorail API error.' })
     }
 
-    if (!json.transaction || !json.transaction.rawTransaction) {
+    if (!json.transaction?.rawTransaction) {
       return res.status(400).json({
         success: false,
         error: 'Invalid transaction data from Monorail (missing rawTransaction).'
@@ -142,7 +139,6 @@ router.post('/confirm', async (req, res) => {
   }
 })
 
-// POST /api/swap/quote
 router.post('/quote', async (req, res) => {
   let { from, to, amount, sender } = req.body
   if (!from || !to || !amount || !sender) {
@@ -167,12 +163,12 @@ router.post('/quote', async (req, res) => {
     let quote
     try {
       quote = JSON.parse(text)
-    } catch (err) {
+    } catch {
       console.error('❌ Failed to parse Monorail quote:', text)
       return res.status(500).json({
         success: false,
         error: 'Invalid JSON returned from Monorail quote endpoint.',
-        raw: text,
+        raw: text
       })
     }
 

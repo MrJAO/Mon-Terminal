@@ -1,8 +1,8 @@
 // index.js
 import express from 'express'
 import dotenv from 'dotenv'
+import cors from 'cors' // ✅ Add CORS for cross-origin fetches
 
-// 🌐 Load environment variables
 dotenv.config()
 
 // 📦 Route handlers
@@ -19,6 +19,7 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // 🔐 Middleware
+app.use(cors()) // ✅ Important for allowing Vercel frontend to call Render backend
 app.use(express.json())
 
 // 🧠 MCP API Routes
@@ -26,7 +27,7 @@ app.use('/api/analyze', analyzeRoute)
 app.use('/analyze', analyzeRoute)
 
 app.use('/api/swap', router)
-console.log("✅ Swap routes mounted at /api/swap") // ✅ Added log
+console.log("✅ Swap routes mounted at /api/swap")
 
 // Other routes
 app.use('/api/command', commandRoute)

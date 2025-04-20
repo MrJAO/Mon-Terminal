@@ -5,10 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: 'localhost',
-    port: 5173, // You can change this if needed
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'https://mon-terminal.onrender.com',
         changeOrigin: true,
         secure: false,
       },

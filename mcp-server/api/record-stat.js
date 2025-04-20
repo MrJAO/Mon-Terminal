@@ -9,16 +9,19 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Load ABI
-const ABI = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '../abi/MonTerminal.abi.json'), 'utf8')
-)
+const ABI_PATH = path.join(__dirname, '../abi/MonTerminal.abi.json')
+const ABI = JSON.parse(fs.readFileSync(ABI_PATH, 'utf8'))
 
 const router = express.Router()
 
 const CONTRACT_ADDRESS = process.env.MON_TERMINAL_ADDRESS
 const RPC_URL = process.env.MONAD_RPC_URL
 
-// Initialize provider and contract instance
+if (!CONTRACT_ADDRESS || !RPC_URL) {
+  console.warn('⚠️ Missing MON_TERMINAL_ADDRESS or MONAD_RPC_URL in env.')
+}
+
+// Initialize provider and contract
 const provider = new ethers.JsonRpcProvider(RPC_URL)
 const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider)
 
@@ -33,38 +36,38 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    console.log(`[record-stat] Attempting to record stat for address: ${address}, PnL: ${pnl}`)
+    console.log(`[record-stat] 📈 Recording stat for ${address} | PnL: ${pnl}`)
 
-    // Scale PnL to 6 decimals
     const scaledPnL = BigInt(Math.round(pnl * 1e6))
-    console.log(`[record-stat] Scaled PnL: ${scaledPnL}`)
 
-    // === Cooldown enforcement via contract getter ===
     const lastTsRaw = await contract.lastRecord(address)
     const lastTsMs = Number(lastTsRaw) * 1000
     const now = Date.now()
+
     if (now < lastTsMs + COOLDOWN_MS) {
-      console.log('[record-stat] Cooldown still active')
-      return res
-        .status(400)
-        .json({ success: false, error: 'You can only record your stats once every 24 hours.' })
+      console.log('[record-stat] ⏳ Cooldown active')
+      return res.status(400).json({
+        success: false,
+        error: 'You can only record your stats once every 24 hours.',
+      })
     }
 
-    console.log('[record-stat] Cooldown passed, calling recordStat...')
+    console.log('[record-stat] ✅ Cooldown passed, sending transaction...')
     const tx = await contract.recordStat(scaledPnL)
-    console.log(`[record-stat] Transaction sent: ${tx.hash}`)
+    console.log(`[record-stat] 🚀 Tx sent: ${tx.hash}`)
 
     await tx.wait()
-    console.log(`[record-stat] Transaction confirmed: ${tx.hash}`)
+    console.log(`[record-stat] ✅ Tx confirmed: ${tx.hash}`)
 
     return res.json({ success: true, hash: tx.hash })
   } catch (err) {
-    console.error('[record-stat error]', err)
+    console.error('[record-stat error]', err.stack || err)
     const msg = err.reason || err.message || 'Unknown error'
     if (msg.includes('Cooldown active')) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'You can only record your stats once every 24 hours.' })
+      return res.status(400).json({
+        success: false,
+        error: 'You can only record your stats once every 24 hours.',
+      })
     }
     return res.status(500).json({ success: false, error: msg })
   }

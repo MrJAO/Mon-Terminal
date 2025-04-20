@@ -21,6 +21,10 @@ import {
 
 const MON_TERMINAL_ADDRESS = import.meta.env.VITE_MON_TERMINAL_ADDRESS
 const ACHIEVEMENT_ADDRESS = import.meta.env.VITE_ACHIEVEMENT_NFT_ADDRESS
+const baseApiUrl = import.meta.env.PROD
+  ? 'https://mon-terminal.onrender.com/api'
+  : '/api'
+
 
 function App() {
   const { address, isConnected } = useAccount()
@@ -175,7 +179,7 @@ function App() {
           return
         }
         try {
-          const res = await fetch('/api/pnl', {
+          const res = await fetch(`${baseApiUrl}/pnl`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ address, token })
@@ -223,7 +227,7 @@ function App() {
   
       } else if ((cmd === 'my' && sub === 'achievements') || cmd === 'achievements') {
         try {
-          const res = await fetch(`/api/achievements/${address}`)
+          const res = await fetch(`${baseApiUrl}/achievements/${address}`)
           const data = await res.json()
           if (data.success) {
             setAchievements(data.achievements)
@@ -306,7 +310,7 @@ function App() {
         }, 800)
   
         try {
-          const res = await fetch('/api/analyze', {
+          const res = await fetch(`${baseApiUrl}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ address })
@@ -379,7 +383,7 @@ function App() {
 
   setTerminalLines(prev => [...prev, `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`])
   try {
-    const res = await fetch('/api/swap/quote', {
+    const res = await fetch(`${baseApiUrl}/swap/quote`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -421,7 +425,7 @@ function App() {
   } else if (cmd === 'confirm') {
     setTerminalLines(prev => [...prev, `> Sending last swap…`])
     try {
-      const res = await fetch('/api/swap/confirm/last', {
+      const res = await fetch(`${baseApiUrl}/swap/confirm/last`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sender: address })
@@ -466,7 +470,7 @@ function App() {
 
     } else {
       try {
-        const res = await fetch('/api/command', {
+        const res = await fetch(`${baseApiUrl}/command`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command: input })

@@ -1,3 +1,4 @@
+// mcp-server/routes/balance.js
 import express from 'express'
 import { getTokenBalance } from '../utils/getTokenBalance.js'
 
@@ -5,13 +6,23 @@ const router = express.Router()
 
 router.post('/', async (req, res) => {
   const { address, token } = req.body
-  if (!address || !token) return res.status(400).json({ message: 'Missing address or token' })
+
+  if (!address || !token) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing address or token',
+    })
+  }
 
   try {
-    const result = await getTokenBalance(address, token)
-    res.json({ success: true, balance: result })
+    const balance = await getTokenBalance(address, token)
+    return res.json({ success: true, balance })
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
+    console.error('[balance] error:', err)
+    return res.status(500).json({
+      success: false,
+      error: err.message || 'Internal server error',
+    })
   }
 })
 

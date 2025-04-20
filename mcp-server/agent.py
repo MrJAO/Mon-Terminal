@@ -80,7 +80,7 @@ def simulate_clear():
 
 def analyze_wallet(address):
     try:
-        response = requests.post("http://localhost:3001/api/analyze", json={"address": address})
+        response = requests.post("https://mon-terminal.onrender.com/api/analyze", json={"address": address})
         data = response.json()
 
         if data.get("success"):
@@ -107,7 +107,7 @@ def analyze_wallet(address):
 
 def simulate_check_balance(token):
     try:
-        response = requests.post("http://localhost:3001/api/balance", json={
+        response = requests.post("https://mon-terminal.onrender.com/api/balance", json={
             "address": WALLET_ADDRESS,
             "token": token
         })
@@ -121,7 +121,7 @@ def simulate_check_balance(token):
 
 def simulate_check_pnl(token):
     try:
-        response = requests.post("http://localhost:3001/api/pnl", json={
+        response = requests.post("https://mon-terminal.onrender.com/api/pnl", json={
             "address": WALLET_ADDRESS,
             "token": token
         })
@@ -146,21 +146,22 @@ def simulate_check_pnl(token):
         return f"Mon Terminal backend error: {str(e)}"
 
 def simulate_record_stats():
-    cooldowns = _load_cooldowns()
-    now = int(time.time())
-    last = cooldowns.get(WALLET_ADDRESS, 0)
-    if now < last + _COOLDOWN_SECONDS:
-        rem = (last + _COOLDOWN_SECONDS) - now
-        hrs = rem // 3600
-        mins = (rem % 3600) // 60
-        return f"❌ You can only record stats once every 24 hours. Try again in {hrs}h {mins}m."
-    cooldowns[WALLET_ADDRESS] = now
-    _save_cooldowns(cooldowns)
-    return "✅ Stat submitted (simulated)."
+    try:
+        response = requests.post("https://mon-terminal.onrender.com/api/record-stat", json={
+            "address": WALLET_ADDRESS,
+            "pnl": 69.42  # You may dynamically get PnL if needed
+        })
+        data = response.json()
+        if data.get("success"):
+            return f"✅ Stat recorded on-chain! Tx hash: {data['hash']}"
+        else:
+            return f"❌ Record stat failed: {data.get('error', 'Unknown error')}"
+    except Exception as e:
+        return f"❌ Record stat error: {str(e)}"
 
 def simulate_achievements():
     try:
-        response = requests.get(f"http://localhost:3001/api/achievements/{WALLET_ADDRESS}")
+        response = requests.get(f"https://mon-terminal.onrender.com/api/achievements/{WALLET_ADDRESS}")
         data = response.json()
         if data.get("success"):
             unlocked = [achievementNames[id] for id, ok in data["achievements"].items() if ok]
@@ -180,7 +181,7 @@ def simulate_mint(ach_id):
     if not label:
         return f"❌ Unknown achievement ID '{ach_id}'."
     try:
-        response = requests.post("http://localhost:3001/api/achievements/mint", json={
+        response = requests.post("https://mon-terminal.onrender.com/api/achievements/mint", json={
             "address": WALLET_ADDRESS,
             "id": ach_id,
             "label": label
@@ -260,7 +261,7 @@ def main():
             return
 
         try:
-            resp = requests.post("http://localhost:3001/api/swap/quote", json={
+            resp = requests.post("https://mon-terminal.onrender.com/api/swap/quote", json={
                 "from":   from_token,
                 "to":     to_token,
                 "amount": amount,
@@ -297,7 +298,7 @@ def main():
             return
 
         try:
-            resp = requests.post("http://localhost:3001/api/swap/confirm", json=LAST_SWAP_QUOTE)
+            resp = requests.post("https://mon-terminal.onrender.com/api/swap/confirm", json=LAST_SWAP_QUOTE)
             data = resp.json()
             if data.get("success") and data.get("transaction"):
                 tx = data["transaction"]
