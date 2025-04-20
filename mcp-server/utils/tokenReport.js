@@ -5,22 +5,30 @@ import TOKEN_LIST from '../../src/constants/tokenList.js'
 const MONORAIL_HISTORICAL_URL = 'https://testnet-pathfinder-v2.monorail.xyz/v1/historical'
 
 async function fetch7DayPrices(tokenAddress) {
-  const url = new URL(MONORAIL_HISTORICAL_URL)
-  url.searchParams.set('token', tokenAddress)
-  url.searchParams.set('range', '7d') // Assuming Monorail accepts this param
-
-  const response = await fetch(url.toString())
-  const data = await response.json()
-
-  if (!Array.isArray(data?.prices) || data.prices.length === 0) {
-    throw new Error('No price history data returned.')
-  }
-
-  return data.prices.map((entry) => ({
-    timestamp: entry.timestamp,
-    price: parseFloat(entry.price),
-  }))
-}
+    const url = new URL(MONORAIL_HISTORICAL_URL)
+    url.searchParams.set('token', tokenAddress)
+    url.searchParams.set('range', '7d')
+  
+    const response = await fetch(url.toString())
+    const text = await response.text()
+  
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('❌ Monorail response is not valid JSON:', text)
+      throw new Error('Invalid response format from Monorail.')
+    }
+  
+    if (!Array.isArray(data?.prices) || data.prices.length === 0) {
+      throw new Error('No price history data returned.')
+    }
+  
+    return data.prices.map((entry) => ({
+      timestamp: entry.timestamp,
+      price: parseFloat(entry.price),
+    }))
+  }  
 
 function analyzeSentiment(prices) {
   const change = prices[prices.length - 1].price - prices[0].price
