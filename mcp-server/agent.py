@@ -213,6 +213,20 @@ def simulate_token_report(token):
     except Exception as e:
         return f"❌ Token report error: {str(e)}"
 
+def simulate_best_price(token):
+    try:
+        response = requests.post("https://mon-terminal.onrender.com/api/best-price", json={
+            "symbol": token
+        })
+        data = response.json()
+
+        if data.get("success"):
+            return f"💱 Best Price for {token.upper()}: ${data['price']} (via {data['source']})"
+        else:
+            return f"❌ {data.get('error', 'Unknown error')}"
+    except Exception as e:
+        return f"❌ Best price fetch error: {str(e)}"
+
 def main():
     args = sys.argv[1:]
     if not args:

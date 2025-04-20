@@ -408,6 +408,42 @@ function App() {
         })
       }     
 
+    } else if (cmd === 'best' && sub === 'price' && rest[0] === 'for') {
+      const token = rest[1]?.toUpperCase()
+      if (!token) {
+        setTerminalLines(prev => [...prev, '❌ Please specify a token (e.g. best price for MON)'])
+        return
+      }
+    
+      try {
+        const res = await fetch(`${baseApiUrl}/best-price`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: token })
+        })
+        const data = await res.json()
+    
+        if (data.success) {
+          setTerminalLines(prev => {
+            const lines = [...prev]
+            lines.pop()
+            return [...lines, `💱 Best Price for ${token}: $${data.price} (via ${data.source})`]
+          })
+        } else {
+          setTerminalLines(prev => {
+            const lines = [...prev]
+            lines.pop()
+            return [...lines, `❌ ${data.error}`]
+          })
+        }
+      } catch (err) {
+        setTerminalLines(prev => {
+          const lines = [...prev]
+          lines.pop()
+          return [...lines, '❌ Failed to fetch best price.']
+        })
+      }    
+
   // ───── Swap Quote ─────
 } else if (cmd === 'swap' && sub !== 'confirm' && rest[2] === 'to') {
   const fromSymbol = sub.toUpperCase()
