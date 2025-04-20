@@ -14,6 +14,7 @@ import recordStat from './api/record-stat.js'
 import achievementsAddressRoute from './api/achievements/address.js'
 import achievementsMintRoute from './api/achievements/mint.js'
 import router from './api/swap.js'
+import tokenReportRoute from './api/token-report.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -51,6 +52,7 @@ app.use('/api/pnl', pnlRoute)
 app.use('/api/record-stat', recordStat)
 app.use('/api/achievements', achievementsAddressRoute)
 app.use('/api/achievements/mint', achievementsMintRoute)
+app.use('/api/token-report', tokenReportRoute)
 
 // ✅ Root healthcheck
 app.get('/', (req, res) => {

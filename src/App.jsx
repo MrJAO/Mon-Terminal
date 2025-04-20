@@ -6,6 +6,7 @@ import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
 import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import './App.css'
 import './Achievements.css'
+import './TokenReport.css'
 import { getWalletClient } from '@wagmi/core'
 import { hexlify } from 'ethers'
 import {
@@ -361,7 +362,52 @@ function App() {
             return [...newLines, '❌ Mon Terminal is not responding.']
           })
         }
-  
+
+      // ───── Token Report ─────
+    } else if (cmd === 'token' && sub === 'report') {
+      const symbol = tokenArg?.toUpperCase()
+      if (!symbol) {
+        setTerminalLines(prev => [...prev, `❌ Please specify a token (e.g. token report MON)`])
+        return
+      }
+
+      try {
+        const res = await fetch(`${baseApiUrl}/token-report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol })
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          const r = data.report
+          setTerminalLines(prev => {
+            const lines = [...prev]
+            lines.pop()
+            return [
+              ...lines,
+              <div className="token-report-box">
+                <p>📊 <strong>Token Report for {symbol}</strong></p>
+                <p>- 7d Price Change: <span className="highlight-green">{r.priceChangePercent}%</span></p>
+                <p>- Sentiment: <span className={`sentiment ${r.sentiment.toLowerCase()}`}>{r.sentiment}</span></p>
+                <p>- Chart: <a href={r.chartLink} target="_blank" className="token-link">View Chart</a></p>
+              </div>
+            ]
+          })
+          
+        } else {
+          setTerminalLines(prev => {
+            const lines = [...prev]; lines.pop()
+            return [...lines, `❌ Token report error: ${data.error || 'Unknown error'}`]
+          })
+        }
+      } catch (err) {
+        setTerminalLines(prev => {
+          const lines = [...prev]; lines.pop()
+          return [...lines, `❌ Token report fetch failed.`]
+        })
+      }     
+
   // ───── Swap Quote ─────
 } else if (cmd === 'swap' && sub !== 'confirm' && rest[2] === 'to') {
   const fromSymbol = sub.toUpperCase()
@@ -533,15 +579,19 @@ function App() {
                   ))}
 
                   {terminalLines.map((line, i) => {
-                    const isUserCommand = line.startsWith('>')
-                    return isUserCommand ? (
-                      <p key={`response-${i}`} className="text-sm">{line}</p>
-                    ) : (
-                      <div key={`response-${i}`} className="mcp-output-wrapper">
-                        <span className="flicker-arrow">&gt;</span>
-                        <pre className={`mcp-output-box whitespace-pre-wrap text-xs inline-block ${line.includes('PNL Report') ? 'pnl-chart-box' : ''}`}>{line}</pre>
-                      </div>
-                    )
+                    if (typeof line === 'string') {
+                      const isUserCommand = line.startsWith('>')
+                      return isUserCommand ? (
+                        <p key={`response-${i}`} className="text-sm">{line}</p>
+                      ) : (
+                        <div key={`response-${i}`} className="mcp-output-wrapper">
+                          <span className="flicker-arrow">&gt;</span>
+                          <pre className="mcp-output-box whitespace-pre-wrap text-xs inline-block">{line}</pre>
+                        </div>
+                      )
+                    } else {
+                      return <div key={`response-${i}`}>{line}</div> // render JSX safely
+                    }
                   })}
 
                   {isAnalyzing && (

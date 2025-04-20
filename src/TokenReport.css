@@ -1,0 +1,50 @@
+.token-report-box {
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid #00ff88;
+    box-shadow: 0 0 10px #00ff88, 0 0 20px #8800ff inset;
+    padding: 12px 16px;
+    margin: 10px 0;
+    font-family: var(--font-pixel), monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #f2f2f2;
+    border-radius: 4px;
+    text-shadow: 0 0 2px #00ff88;
+    animation: flicker 1.5s infinite alternate;
+  }
+  
+  .token-report-box p {
+    margin: 6px 0;
+  }
+  
+  .token-report-box strong {
+    color: #00ffe6;
+  }
+  
+  .token-report-box .highlight-green {
+    color: #00ff88;
+    font-weight: bold;
+    text-shadow: 0 0 4px #00ff88;
+  }
+  
+  .token-report-box .sentiment.bullish {
+    color: #00ff00;
+  }
+  
+  .token-report-box .sentiment.bearish {
+    color: #ff4d4d;
+  }
+  
+  .token-report-box .token-link {
+    color: #00c0ff;
+    text-decoration: underline;
+    font-weight: bold;
+    text-shadow: 0 0 3px #00c0ff;
+  }
+  
+  @keyframes flicker {
+    0%   { opacity: 0.95; }
+    50%  { opacity: 1;    }
+    100% { opacity: 0.93; }
+  }
+  

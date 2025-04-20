@@ -15,20 +15,19 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const tokenSymbol = token.toUpperCase()
-    const pnlData = await getWalletPnL(address, tokenSymbol)
+    const pnlData = await getWalletPnL(address, token)
 
-    if (!Array.isArray(pnlData) || pnlData.length === 0) {
+    if (!Array.isArray(pnlData) || pnlData.length === 0 || pnlData[0]?.error) {
       return res.status(404).json({
         success: false,
-        error: `No PnL data found for ${tokenSymbol}`,
+        error: pnlData[0]?.error || `No PnL data found for ${token.toUpperCase()}`,
       })
     }
 
-    res.json({ success: true, pnl: pnlData })
+    return res.json({ success: true, pnl: pnlData })
   } catch (error) {
     console.error(`❌ Error in /api/pnl for ${token}:`, error?.stack || error)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error',
     })

@@ -194,6 +194,25 @@ def simulate_mint(ach_id):
     except Exception as e:
         return f"❌ Mint error: {str(e)}"
 
+def simulate_token_report(token):
+    try:
+        response = requests.post("https://mon-terminal.onrender.com/api/token-report", json={
+            "symbol": token
+        })
+        data = response.json()
+        if data.get("success"):
+            info = data["report"]
+            return (
+                f"📊 Token Report for {token.upper()}:\n"
+                f"- 7d Price Change: {info['priceChangePercent']}%\n"
+                f"- Sentiment:       {info['sentiment']}\n"
+                f"- Chart (last 7d): {info['chartLink']}"
+            )
+        else:
+            return f"❌ Token report error: {data.get('error', 'Unknown error')}"
+    except Exception as e:
+        return f"❌ Token report error: {str(e)}"
+
 def main():
     args = sys.argv[1:]
     if not args:
