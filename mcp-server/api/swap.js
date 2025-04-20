@@ -52,7 +52,7 @@ router.post('/confirm/last', async (req, res) => {
   }
 
   try {
-    const url = new URL(`${MONORAIL_API_URL}/v1/transaction`)
+    const url = new URL(`${MONORAIL_API_URL}/v1/build`)
     url.searchParams.set('from', quote.from)
     url.searchParams.set('to', quote.to)
     url.searchParams.set('amount', quote.amount)
@@ -99,7 +99,7 @@ router.post('/confirm', async (req, res) => {
   to = resolveAddr(to)
 
   try {
-    const url = new URL(`${MONORAIL_API_URL}/v1/transaction`)
+    const url = new URL(`${MONORAIL_API_URL}/v1/build`)
     url.searchParams.set('from', from)
     url.searchParams.set('to', to)
     url.searchParams.set('amount', amount)
