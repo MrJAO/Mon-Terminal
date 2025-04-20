@@ -13,6 +13,7 @@ import pnlRoute from './api/pnl.js'
 import recordStat from './api/record-stat.js'
 import achievementsAddressRoute from './api/achievements/address.js'
 import achievementsMintRoute from './api/achievements/mint.js'
+import router from './api/swap.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -21,8 +22,11 @@ const PORT = process.env.PORT || 3001
 app.use(express.json())
 
 // 🧠 MCP API Routes
-// Analyze route for wallet transaction and NFT stats
 app.use('/api/analyze', analyzeRoute)
+app.use('/analyze', analyzeRoute)
+
+app.use('/api/swap', router)
+console.log("✅ Swap routes mounted at /api/swap") // ✅ Added log
 
 // Other routes
 app.use('/api/command', commandRoute)

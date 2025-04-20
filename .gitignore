@@ -1,0 +1,5 @@
+.env
+mcp-server/.env
+node_modules
+dist/
+mcp-server/node_modules/

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract, useSendTransaction } from 'wagmi'
 import { Typewriter } from 'react-simple-typewriter'
 import TOKEN_LIST from './constants/tokenList'
 import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
 import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import './App.css'
 import './Achievements.css'
+import { getWalletClient } from '@wagmi/core'
+import { hexlify } from 'ethers'
 import {
   BarChart,
   Bar,
@@ -25,6 +27,7 @@ function App() {
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { writeContractAsync } = useWriteContract()
+  const { sendTransaction } = useSendTransaction()
 
   const [hasTyped, setHasTyped] = useState(false)
   const [terminalLines, setTerminalLines] = useState([])
@@ -164,6 +167,7 @@ function App() {
       const sub = rest[0]
       const tokenArg = rest[1]
   
+      // ───── PnL ─────
       if (cmd === 'check' && sub === 'pnl') {
         const token = tokenArg?.toUpperCase()
         if (!token) {
@@ -254,7 +258,7 @@ function App() {
         }
         await handleRecordStat()
   
-      } else if (cmd === 'mint') {
+      }  else if (cmd === 'mint') {
         const label = rest.join(' ').trim()
   
         if (!achievements || Object.keys(achievements).length === 0) {
@@ -279,42 +283,6 @@ function App() {
           return
         }
   
-        const [id, matchedLabel] = entry
-        if (achievements[id] === 'eligible') {
-          await handleMint(id, matchedLabel)
-        } else {
-          setTerminalLines(prev => {
-            const lines = [...prev]
-            if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
-            return [...lines, `❌ You are not eligible to mint "${matchedLabel}".`]
-          })
-        }
-
-      } else if (cmd === 'mint') {
-        const label = rest.join(' ').trim()
-      
-        if (!achievements || Object.keys(achievements).length === 0) {
-          setTerminalLines(prev => {
-            const lines = [...prev]
-            if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
-            return [...lines, `❌ Please run the "achievements" command first.`]
-          })
-          return
-        }
-      
-        const entry = Object.entries(achievementNames).find(([id, l]) =>
-          l.toLowerCase() === label.toLowerCase() || `mint ${l}`.toLowerCase() === input.toLowerCase()
-        )
-      
-        if (!entry) {
-          setTerminalLines(prev => {
-            const lines = [...prev]
-            if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
-            return [...lines, `❌ Unknown achievement "${label}"`]
-          })
-          return
-        }
-      
         const [id, matchedLabel] = entry
         if (achievements[id] === 'eligible') {
           await handleMint(id, matchedLabel)
@@ -329,14 +297,14 @@ function App() {
       } else if (cmd === 'analyze') {
         setIsAnalyzing(true)
         setAnalyzeProgress('Initializing analysis...')
-      
+  
         const progressInterval = setInterval(() => {
           setAnalyzeProgress(prev => {
             if (prev.includes('...')) return 'Analyzing'
             return prev + '.'
           })
         }, 800)
-      
+  
         try {
           const res = await fetch('/api/analyze', {
             method: 'POST',
@@ -344,20 +312,20 @@ function App() {
             body: JSON.stringify({ address })
           })
           const data = await res.json()
-      
+  
           clearInterval(progressInterval)
           setIsAnalyzing(false)
           setAnalyzeProgress('')
-      
+  
           if (data.success) {
             const result = data.data
             const dexLines = Object.entries(result.dexSummary.interactions)
               .map(([dex, count]) => `  -> ${dex}: ${count} interactions`)
               .join('\n')
-      
+  
             const nftInfo = result.nftHoldings
             const nftSummary = `- NFTs: ${nftInfo.total} total (${nftInfo.verified} verified, ${nftInfo.unverified} unverified)`
-      
+  
             const output = [
               `Mon Terminal Report for Wallet ${address}`,
               `- Activity Level: ${result.activityLevel}`,
@@ -366,7 +334,7 @@ function App() {
               `- DEX Interactions (last 12 hours):\n${dexLines}`,
               `Disclaimer: ${result.disclaimer}`
             ].join('\n')
-      
+  
             setTerminalLines(prev => {
               const newLines = [...prev]
               if (newLines[newLines.length - 1] === '> Mon Terminal is thinking...') newLines.pop()
@@ -389,30 +357,136 @@ function App() {
             return [...newLines, '❌ Mon Terminal is not responding.']
           })
         }
-      
-      } else {      
-        try {
-          const res = await fetch('/api/command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: input })
-          })
-          const data = await res.json()
-          setTerminalLines(prev => {
-            const lines = [...prev]
-            if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
-            return [...lines, data.response]
-          })
-        } catch {
-          setTerminalLines(prev => {
-            const lines = [...prev]
-            if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
-            return [...lines, '> Unknown command.']
-          })
-        }
+  
+  // ───── Swap Quote ─────
+} else if (cmd === 'swap' && sub !== 'confirm' && rest[2] === 'to') {
+  const fromSymbol = sub.toUpperCase()
+  const amount     = rest[1]
+  const toSymbol   = rest[3].toUpperCase()
+
+  const fromInfo = TOKEN_LIST.find(t => t.symbol === fromSymbol)
+  const toInfo   = TOKEN_LIST.find(t => t.symbol === toSymbol)
+  if (!fromInfo || !toInfo) {
+    setTerminalLines(prev => {
+      const lines = [...prev]; lines.pop()
+      const bad = !fromInfo ? fromSymbol : toSymbol
+      return [...lines, `❌ Unknown token symbol: ${bad}`]
+    })
+    return
+  }
+  const fromAddr = fromInfo.address
+  const toAddr   = toInfo.address
+
+  setTerminalLines(prev => [...prev, `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`])
+  try {
+    const res = await fetch('/api/swap/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from:   fromAddr,
+        to:     toAddr,
+        amount,
+        sender: address
+      })
+    })
+    const data = await res.json()
+    if (data.success) {
+      const q = data.quote
+      setTerminalLines(prev => {
+        const lines = [...prev]; lines.pop()
+        return [
+          ...lines,
+          `Quote:`,
+          `- You send:       ${q.input_formatted} ${fromSymbol}`,
+          `- You’ll receive: ${q.output_formatted} ${toSymbol}`,
+          `- Min receive:    ${q.min_output_formatted} ${toSymbol}`,
+          `- Price impact:   ${(Number(q.compound_impact) * 100).toFixed(2)}%`,
+          `Type: confirm ${fromSymbol} ${amount} to ${toSymbol}`
+        ]
+      })
+    } else {
+      setTerminalLines(prev => {
+        const lines = [...prev]; lines.pop()
+        return [...lines, `❌ ${data.error}`]
+      })
+    }
+  } catch {
+    setTerminalLines(prev => {
+      const lines = [...prev]; lines.pop()
+      return [...lines, '❌ Swap quote failed.']
+    })
+  }
+
+    // ───── Swap Execute ─────
+  } else if (cmd === 'confirm') {
+    setTerminalLines(prev => [...prev, `> Sending last swap…`])
+    try {
+      const res = await fetch('/api/swap/confirm/last', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender: address })
+      })
+      const data = await res.json()
+
+      if (!data.success) {
+        setTerminalLines(prev => {
+          const lines = [...prev]; lines.pop()
+          return [...lines, `❌ ${data.error}`]
+        })
+        return
+      }
+
+      const txObj = data.transaction
+      if (!txObj?.to || !txObj?.data) {
+        setTerminalLines(prev => {
+          const lines = [...prev]; lines.pop()
+          return [...lines, `❌ Invalid transaction object.`]
+        })
+        return
+      }
+
+      const walletClient = await getWalletClient()
+      if (!walletClient) throw new Error('Wallet client not available.')
+
+      const txHash = await walletClient.sendRawTransaction({
+        serializedTransaction: txObj.rawTransaction
+      })
+
+      setTerminalLines(prev => {
+        const lines = [...prev]; lines.pop()
+        return [...lines, `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`]
+      })
+    } catch (err) {
+      console.error("❌ Confirm error:", err)
+      setTerminalLines(prev => {
+        const lines = [...prev]; lines.pop()
+        return [...lines, `❌ Confirm failed: ${err.message}`]
+      })
+    }
+
+    } else {
+      try {
+        const res = await fetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: input })
+        })
+        const data = await res.json()
+        setTerminalLines(prev => {
+          const lines = [...prev]
+          if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
+          return [...lines, data.response]
+        })
+      } catch {
+        setTerminalLines(prev => {
+          const lines = [...prev]
+          if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
+          return [...lines, '> Unknown command.']
+        })
       }
     }
-  }  
+  }
+}
 
   const initialInfo = [
     '> Wallet Connected',

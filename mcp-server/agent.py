@@ -6,6 +6,28 @@ import requests
 WALLET_ADDRESS = "0xd9F016e453dE48D877e3f199E8FA4aADca2E979C"  # Replace dynamically if needed
 _COOLDOWN_FILE = "cooldowns.json"
 _COOLDOWN_SECONDS = 24 * 60 * 60
+LAST_SWAP_QUOTE = {}
+
+# ─── Token symbol to contract address map ───
+TOKEN_ADDRESSES = {
+    'MON':    "native",
+    'USDC':   "0xf817257fed379853cDe0fa4F97AB987181B1e5Ea",
+    'USDT':   "0x88b8E2161DEDC77EF4ab7585569D2415a1C1055D",
+    'DAK':    "0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714",
+    'YAKI':   "0xfe140e1dCe99Be9F4F15d657CD9b7BF622270C50",
+    'CHOG':   "0xE0590015A873bF326bd645c3E1266d4db41C4E6B",
+    'WMON':   "0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701",
+    'WETH':   "0xB5a30b0FDc5EA94A52fDc42e3E9760Cb8449Fb37",
+    'WBTC':   "0xcf5a6076cfa32686c0Df13aBaDa2b40dec133F1d",
+    'WSOL':   "0x5387C85A4965769f6B0Df430638a1388493486F1",
+    'BEAN':   "0x268E4E24E0051EC27b3D27A95977E71cE6875a05",
+    'shMON':  "0x3a98250F98Dd388C211206983453837C8365BDc1",
+    'MAD':    "0xC8527e96c3CB9522f6E35e95C0A28feAb8144f15",
+    'sMON':   "0xe1d2439b75fb9746E7Bc6cB777Ae10AA7f7ef9c5",
+    'aprMON': "0xb2f82D0f38dc453D596Ad40A37799446Cc89274A",
+    'gMON':   "0xaEef2f6B429Cb59C9B2D7bB2141ADa993E8571c3"
+}
+
 
 # Achievement mapping
 achievementNames = {
@@ -45,6 +67,8 @@ def print_help():
 > achievements                 View your unlocked achievements
 > mint <achievement_name>      Mint a soulbound achievement NFT
 > best price for <token>       Compare DEX prices for a token
+> swap <from> <amount> to <to>    Quote a token swap (e.g. swap MON 1 to USDC)
+> confirm <from> <amount> to <to> Execute a quoted swap
 > show my nfts                 List owned NFTs (by value)
 > find nft <keyword>           Search NFTs by name
 > send <token> to <address>    Send token to address (bulk supported)
@@ -220,6 +244,69 @@ def main():
 
     elif command == "token" and len(args) > 2 and args[1] == "report":
         print(simulate_token_report(args[2]))
+
+    # ────────── Swap Quote ──────────
+    elif command == "swap" and len(args) >= 5 and args[3].lower() == "to":
+        sym_from = args[1].upper()
+        amount   = args[2]
+        sym_to   = args[4].upper()
+
+        from_token = TOKEN_ADDRESSES.get(sym_from)
+        to_token   = TOKEN_ADDRESSES.get(sym_to)
+
+        if not from_token or not to_token:
+            bad = sym_from if not from_token else sym_to
+            print(f"❌ Unknown token symbol: {bad}")
+            return
+
+        try:
+            resp = requests.post("http://localhost:3001/api/swap/quote", json={
+                "from":   from_token,
+                "to":     to_token,
+                "amount": amount,
+                "sender": WALLET_ADDRESS
+            })
+            data = resp.json()
+            if data.get("success"):
+                q = data["quote"]
+                print(
+                    f"📊 Quote for swapping {amount} {sym_from} → {sym_to}:\n"
+                    f"- You send:       {q['input_formatted']} {sym_from}\n"
+                    f"- You’ll receive: {q['output_formatted']} {sym_to}\n"
+                    f"- Min receive:    {q['min_output_formatted']} {sym_to}\n"
+                    f"- Price impact:   {float(q['compound_impact'])*100:.2f}%\n\n"
+                    f"Type: confirm"
+                )
+                # 🧠 Store last swap
+                global LAST_SWAP_QUOTE
+                LAST_SWAP_QUOTE = {
+                    "from": from_token,
+                    "to": to_token,
+                    "amount": amount,
+                    "sender": WALLET_ADDRESS
+                }
+            else:
+                print(f"❌ Swap quote error: {data.get('error')}")
+        except Exception as e:
+            print(f"❌ Swap quote error: {e}")
+
+    # ────────── Swap Confirm (Simple) ──────────
+    elif command == "confirm":
+        if not LAST_SWAP_QUOTE:
+            print("❌ No swap quote found. Use 'swap <from> <amount> to <to>' first.")
+            return
+
+        try:
+            resp = requests.post("http://localhost:3001/api/swap/confirm", json=LAST_SWAP_QUOTE)
+            data = resp.json()
+            if data.get("success") and data.get("transaction"):
+                tx = data["transaction"]
+                print("🚀 Raw swap transaction object (pass this to your front‑end for signing):")
+                print(json.dumps(tx, indent=2))
+            else:
+                print(f"❌ Swap confirm error: {data.get('error', 'Missing transaction data')}")
+        except Exception as e:
+            print(f"❌ Swap confirm error: {e}")
 
     else:
         print(f"> {' '.join(args)}\nUnknown command. Type `help` to see available options.")
