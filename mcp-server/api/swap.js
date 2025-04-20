@@ -157,6 +157,8 @@ router.post('/quote', async (req, res) => {
     url.searchParams.set('slippage', SLIPPAGE)
     url.searchParams.set('deadline', DEADLINE)
 
+    console.log("🔍 Monorail Request URL:", url.toString())
+
     const resp = await fetch(url.toString())
     const text = await resp.text()
 
