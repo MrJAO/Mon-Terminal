@@ -43,7 +43,6 @@ a {
   color: var(--color-primary);
   text-decoration: none;
 }
-
 a:hover {
   color: var(--color-accent);
 }
@@ -65,29 +64,14 @@ button {
   justify-content: center;
   white-space: nowrap;
 }
-
 button:hover {
   background-color: var(--color-accent);
   color: #fff;
   border-color: var(--color-primary);
 }
-
 button:focus,
 button:focus-visible {
   outline: 2px dashed var(--color-primary);
-}
-
-/* 🚀 Record Stats Label */
-.record-stats-label {
-  font-size: 10px;
-  margin-top: 0.75rem;
-  color: #fff;
-  text-align: center;
-  font-family: 'Press Start 2P', monospace;
-}
-
-.record-stats-label span {
-  color: var(--color-primary);
 }
 
 /* ✍️ Input Styling */
@@ -99,10 +83,21 @@ input {
   font-size: 12px;
   width: 100%;
 }
-
 input:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+/* 🚀 Record Stats Label */
+.record-stats-label {
+  font-size: 10px;
+  margin-top: 0.75rem;
+  color: #fff;
+  text-align: center;
+  font-family: 'Press Start 2P', monospace;
+}
+.record-stats-label span {
+  color: var(--color-primary);
 }
 
 /* 🧾 Terminal Output Formatting */
@@ -121,14 +116,12 @@ pre {
   align-items: flex-start;
   gap: 0.6rem;
 }
-
 .flicker-arrow {
   color: var(--color-accent);
   animation: flickerArrow 1s infinite steps(1, start);
   font-size: 13px;
   margin-top: 3px;
 }
-
 @keyframes flickerArrow {
   0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
     opacity: 1;
@@ -137,7 +130,6 @@ pre {
     opacity: 0;
   }
 }
-
 .mcp-output-box {
   background-color: var(--color-bg-dark);
   border: 2px solid var(--color-accent);
@@ -172,7 +164,6 @@ pre {
   max-width: 380px;
   margin: 0 auto;
 }
-
 .chart-container {
   display: flex;
   flex-direction: column;
@@ -183,6 +174,43 @@ pre {
   border-radius: 6px;
   border: 1px dashed var(--color-accent);
   box-shadow: 0 0 10px rgba(194, 0, 251, 0.15);
+}
+
+/* 🕶 CRT Scanline Utility */
+.crt-scan {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+.crt-scan::before {
+  content: "";
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  animation: scanlines 6s linear infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+@keyframes scanlines {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+.crt-scan > * {
+  position: relative;
+  z-index: 2;
 }
 
 /* 📱 Mobile Tweaks */
@@ -217,22 +245,4 @@ pre {
     font-size: 9px;
     margin-top: 0.5rem;
   }
-}
-
-/* 🕶 CRT Scanline Utility */
-.crt-scan::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent,
-    transparent 1px,
-    rgba(255, 255, 255, 0.015) 2px
-  );
-  z-index: 1;
 }

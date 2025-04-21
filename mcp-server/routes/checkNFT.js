@@ -10,6 +10,10 @@ const router = express.Router();
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
 const ALCHEMY_BASE_URL = `https://monad-testnet.g.alchemy.com/nft/v3/${ALCHEMY_API_KEY}`;
 
+function isValidAddress(str) {
+  return /^0x[a-fA-F0-9]{40}$/.test(str);
+}
+
 async function fetchNFTs(owner, contractAddresses = []) {
   const url = new URL(`${ALCHEMY_BASE_URL}/getNFTsForOwner`);
   url.searchParams.set('owner', owner);
@@ -45,15 +49,23 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid command' });
     }
 
-    let nfts;
+    let nfts = [];
+
     if (type === 'all') {
       nfts = await fetchNFTs(owner);
+    } else if (isValidAddress(type)) {
+      nfts = await fetchNFTs(owner, [type]);
     } else {
       const contractAddr = getContractAddress(type);
-      if (!contractAddr) {
-        return res.status(400).json({ error: `Unknown NFT identifier: ${type}` });
+      if (contractAddr) {
+        nfts = await fetchNFTs(owner, [contractAddr]);
+      } else {
+        const all = await fetchNFTs(owner);
+        const keyword = type.toLowerCase();
+        nfts = all.filter(nft =>
+          (nft.name || nft.title || nft.metadata?.name || '').toLowerCase().includes(keyword)
+        );
       }
-      nfts = await fetchNFTs(owner, [contractAddr]);
     }
 
     console.log(`📦 Returning ${nfts.length} NFTs to frontend`);

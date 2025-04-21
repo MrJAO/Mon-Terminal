@@ -21,33 +21,36 @@ import {
 } from 'recharts'
 
 const renderNFTs = (nfts, sortBy) => {
+  const processed = nfts
+    .filter(nft => nft?.tokenId || nft?.id?.tokenId)
+    .map(nft => {
+      let id = nft.tokenId || nft.id?.tokenId || '0x0'
+      try { id = parseInt(id, 16) } catch {}
+      return { ...nft, displayId: id }
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '')
+      if (sortBy === 'id') return a.displayId - b.displayId
+      return 0
+    })
+
   return (
     <div className="nft-container animate-fadeIn">
-      {nfts
-        .filter(nft => nft?.tokenId || nft?.id?.tokenId)
-        .map(nft => {
-          let id = nft.tokenId || nft.id?.tokenId || '0x0'
-          try { id = parseInt(id, 16) } catch {}
-          return { ...nft, displayId: id }
-        })
-        .sort((a, b) => {
-          if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '')
-          if (sortBy === 'id') return a.displayId - b.displayId
-          return 0
-        })
-        .map(nft => {
-          const name = nft.name || nft.metadata?.name || nft.title || 'Unknown'
-          const imgUrl = nft.image?.cachedUrl || nft.image?.pngUrl || nft.image?.originalUrl || nft.media?.[0]?.gateway || ''
-          return (
-            <div className="nft-item pixel-glow" key={`${nft.contract?.address}-${nft.displayId}`}>
-              {imgUrl && <img src={imgUrl} alt={name} />}
-              <div className="nft-name">{name}</div>
-              <div className="nft-divider" />
-              <div className="nft-id">ID: {nft.displayId}</div>
-              <div className="nft-contract break-all leading-snug text-[10px] tracking-tight text-purple-300">{nft.contract?.address}</div>
+      {processed.map(nft => {
+        const name = nft.name || nft.metadata?.name || nft.title || 'Unknown'
+        const imgUrl = nft.image?.cachedUrl || nft.image?.pngUrl || nft.image?.originalUrl || nft.media?.[0]?.gateway || ''
+        return (
+          <div className="nft-item pixel-glow" key={`${nft.contract?.address}-${nft.displayId}`}>
+            {imgUrl && <img src={imgUrl} alt={name} />}
+            <div className="nft-name">{name}</div>
+            <div className="nft-divider" />
+            <div className="nft-id">ID: {nft.displayId}</div>
+            <div className="nft-contract break-all leading-snug text-[10px] tracking-tight text-purple-300">
+              {nft.contract?.address}
             </div>
-          )
-        })}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -75,6 +78,7 @@ function App() {
   const [lastSwapQuote, setLastSwapQuote] = useState(null)
   const [isCooldownActive, setIsCooldownActive] = useState(false)
   const [cooldownTimestamp, setCooldownTimestamp] = useState(null)
+  const [nftResults, setNftResults] = useState(null)
 
   const achievementNames = {
     green10: "Profit Initiate",
@@ -195,6 +199,7 @@ function App() {
 
     setPnlChartData(null)
     setShowAchievementsUI(false)
+    setNftResults(null)
     setTerminalLines(prev => [...prev, `> ${input}`, '> Mon Terminal is thinking...'])
 
     const [cmd, sub, tokenArg, ...rest] = input.split(' ')
@@ -521,13 +526,11 @@ function App() {
       setTerminalLines(prev => [...prev.slice(0, -1), `❌ Confirm failed: ${err.message}`])
     }
 
-  // ── SHOW ALL NFTs ───────────────────────────────────────────
   } else if (cmd === 'show' && sub === 'my' && tokenArg === 'nfts') {
-    // optional sorting flag: --sort=name or --sort=id
     const sortFlag = rest.find(r => r.startsWith('--sort='))
-    const sortBy   = sortFlag?.split('=')[1] || null
-
-    setTerminalLines([`> Fetching your NFTs…`]) // ✅ clear previous lines
+    const sortBy = sortFlag?.split('=')[1] || null
+  
+    setTerminalLines([`> Fetching your NFTs…`]) // clear terminal
     try {
       const res = await fetch(`${baseApiUrl}/checkNFT`, {
         method: 'POST',
@@ -536,19 +539,18 @@ function App() {
       })
       const { nfts, error } = await res.json()
       if (error) throw new Error(error)
-
+  
       if (!nfts.length) {
         setTerminalLines(prev => [...prev.slice(0, -1), '❌ No NFTs found in your wallet.'])
+        setNftResults(null)
       } else {
-        // delegate to our renderNFTs helper
-        setTerminalLines(prev => [
-          ...prev.slice(0, -1),
-          renderNFTs(nfts, sortBy)
-        ])
+        setTerminalLines(prev => [...prev.slice(0, -1)]) // remove thinking line
+        setNftResults(renderNFTs(nfts, sortBy))          // ✅ save rendered result
       }
     } catch (e) {
       setTerminalLines(prev => [...prev.slice(0, -1), `❌ Unable to fetch NFTs: ${e.message}`])
-    }
+      setNftResults(null)
+    }  
     
     // ── Fallback Command ──
     } else {
@@ -659,6 +661,12 @@ function App() {
                         </BarChart>
                       </ResponsiveContainer>
                       <p className="record-stats-label mt-3"><span className="text-[var(--color-accent)]">Type:</span> record stats to submit your record onchain</p>
+                    </div>
+                  )}
+
+                  {nftResults && (
+                    <div className="nft-results-wrapper">
+                      {nftResults}
                     </div>
                   )}
 

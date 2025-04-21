@@ -97,6 +97,7 @@ router.post('/confirm', async (req, res) => {
     url.searchParams.set('deadline', DEADLINE)
     url.searchParams.set('max_hops', MAX_HOPS)
     url.searchParams.set('source', 'mon-terminal')
+    url.searchParams.set('build', 'true')
 
     console.log('🚀 Monorail build URL:', url.toString())
     const resp = await fetch(url.toString())
