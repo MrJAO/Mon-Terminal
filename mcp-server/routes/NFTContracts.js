@@ -9,15 +9,13 @@ const NFT_CONTRACTS = {
     "TheDaks": "0x78ed9a576519024357ab06d9834266a04c9634b7",
     "JikuPass": "0x66bfe7c5c2dc052492938a9f7d50251a47b375ef",
     "Legacy Eggs": "0xa980f072bc06d67faec2b03a8ada0d6c9d0da9f8",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "Mintpad x Monad Early Supporters": "0xaaf8eb9dfea66a941dbf7322856f228464c88d86",
+    "Wonad Soil Card": "0x33cafd437816eb5aafe2b2e7bedf82a3d8d226e7",
+    "The10kSquad": "0x3a9454c1b4c84d1861bb1209a647c834d137b442",
+    "Beannad": "0xb03b60818fd7f391e2e02c2c41a61cff86e4f3f5",
+    "DRIPSTER DISC PASS": "0x6c84c9d9e06002776b3cd87f54f915b5ae2be439",
+    "MONUKI": "0x490df01fff290f816e0bf8a1c38bc50a9448ef95",
+    "overnads": "0x66b655de495268eb4c7b70bf4ac1ab4094589f93",
   };
   
   // Build reverse lookup: address (lowercased) to name
