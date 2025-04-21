@@ -22,11 +22,11 @@ import {
 
 const renderNFTs = (nfts, sortBy) => {
   return (
-    <div className="nft-container">
+    <div className="nft-container animate-fadeIn">
       {nfts
-        .filter(nft => nft?.tokenId) // ✅ use Alchemy's tokenId format
+        .filter(nft => nft?.tokenId || nft?.id?.tokenId)
         .map(nft => {
-          let id = nft.tokenId
+          let id = nft.tokenId || nft.id?.tokenId || '0x0'
           try { id = parseInt(id, 16) } catch {}
           return { ...nft, displayId: id }
         })
@@ -36,15 +36,15 @@ const renderNFTs = (nfts, sortBy) => {
           return 0
         })
         .map(nft => {
-          const name = nft.name || 'Unknown'
-          const imgUrl = nft.image?.cachedUrl || nft.image?.pngUrl || nft.image?.originalUrl || ''
+          const name = nft.name || nft.metadata?.name || nft.title || 'Unknown'
+          const imgUrl = nft.image?.cachedUrl || nft.image?.pngUrl || nft.image?.originalUrl || nft.media?.[0]?.gateway || ''
           return (
-            <div className="nft-item" key={`${nft.contract?.address}-${nft.displayId}`}>
+            <div className="nft-item pixel-glow" key={`${nft.contract?.address}-${nft.displayId}`}>
               {imgUrl && <img src={imgUrl} alt={name} />}
               <div className="nft-name">{name}</div>
               <div className="nft-divider" />
               <div className="nft-id">ID: {nft.displayId}</div>
-              <div className="nft-contract">{nft.contract?.address}</div>
+              <div className="nft-contract break-all leading-snug text-[10px] tracking-tight text-purple-300">{nft.contract?.address}</div>
             </div>
           )
         })}
@@ -527,7 +527,7 @@ function App() {
     const sortFlag = rest.find(r => r.startsWith('--sort='))
     const sortBy   = sortFlag?.split('=')[1] || null
 
-    setTerminalLines(prev => [...prev.slice(0, -1), `> Fetching your NFTs…`])
+    setTerminalLines([`> Fetching your NFTs…`]) // ✅ clear previous lines
     try {
       const res = await fetch(`${baseApiUrl}/checkNFT`, {
         method: 'POST',
@@ -554,7 +554,8 @@ function App() {
     } else {
       try {
         const res = await fetch(`${baseApiUrl}/command`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command: input })
         })
         const data = await res.json()
@@ -562,8 +563,8 @@ function App() {
       } catch {
         setTerminalLines(prev => [...prev.slice(0, -1), '❌ Mon Terminal is not responding.'])
       }
-    }
-  }
+    }  
+}
 
   const initialInfo = [
     '> Wallet Connected',
@@ -585,7 +586,7 @@ function App() {
           </span>
         </div>
 
-        <div className="terminal-screen flex flex-col justify-start gap-2 overflow-y-auto my-4 flex-grow">
+        <div className="terminal-screen relative crt-scan flex flex-col justify-start gap-2 overflow-y-auto my-4 flex-grow">
           {!hasTyped ? (
             <Typewriter
               words={['> Connect Wallet to begin using Mon Terminal']}

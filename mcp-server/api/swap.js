@@ -61,6 +61,7 @@ router.post('/quote', async (req, res) => {
     url.searchParams.set('slippage', SLIPPAGE)
     url.searchParams.set('deadline', DEADLINE)
     url.searchParams.set('max_hops', MAX_HOPS)
+    url.searchParams.set('source', 'mon-terminal')
 
     console.log('🔍 Monorail quote URL:', url.toString())
     const resp = await fetch(url.toString())
@@ -87,7 +88,7 @@ router.post('/confirm', async (req, res) => {
   }
 
   try {
-    const url = new URL(`${MONORAIL_API_URL}/v1/build`)
+    const url = new URL(`${MONORAIL_API_URL}/v1/quote`)
     url.searchParams.set('from', from)
     url.searchParams.set('to', to)
     url.searchParams.set('amount', amount)
@@ -95,6 +96,7 @@ router.post('/confirm', async (req, res) => {
     url.searchParams.set('slippage', SLIPPAGE)
     url.searchParams.set('deadline', DEADLINE)
     url.searchParams.set('max_hops', MAX_HOPS)
+    url.searchParams.set('source', 'mon-terminal')
 
     console.log('🚀 Monorail build URL:', url.toString())
     const resp = await fetch(url.toString())

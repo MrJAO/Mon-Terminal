@@ -1,15 +1,22 @@
 /* NFT.css — cyberpunk pixelated styling for NFT list */
 
-/* Container for NFT items */
-.nft-container {
+@keyframes flickerGlow {
+    0%   { box-shadow: 0 0 2px #c200fb; }
+    50%  { box-shadow: 0 0 6px #00ff9f, 0 0 10px #c200fb inset; }
+    100% { box-shadow: 0 0 2px #c200fb; }
+  }
+  
+  /* Container for NFT items */
+  .nft-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 1rem;
     padding: 1rem;
     background: #0a001c;
     border: 2px solid #7d00b0;
-    border-radius: 8px;
-    box-shadow: 0 0 8px #7d00b0, inset 0 0 4px #7d00b0;
+    border-radius: 12px;
+    box-shadow: 0 0 15px #7d00b0, inset 0 0 10px #7d00b0;
+    animation: flickerGlow 2.4s infinite ease-in-out;
   }
   
   /* Individual NFT card */
@@ -19,55 +26,69 @@
     align-items: center;
     background: #10002b;
     border: 2px solid #c200fb;
-    border-radius: 4px;
+    border-radius: 8px;
     padding: 0.75rem;
     font-family: 'Press Start 2P', monospace;
     color: #e6e6e6;
     text-shadow: 0 0 2px #c200fb;
-    transition: transform 0.1s ease-in-out;
-  }
-  .nft-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 6px #00ff9f;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    animation: flickerGlow 3.5s infinite;
   }
   
-  /* NFT image with pixelated rendering */
+  .nft-item:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 10px #00ff9f, 0 0 20px #c200fb;
+    z-index: 2;
+  }
+  
+  /* Pixelated NFT image */
   .nft-item img {
     width: 100%;
     height: auto;
     image-rendering: pixelated;
     border: 1px solid #7d00b0;
     margin-bottom: 0.5rem;
+    box-shadow: 0 0 5px #c200fb;
   }
   
   /* NFT name styling */
   .nft-name {
-    font-size: 0.7rem;
-    margin-bottom: 0.25rem;
+    font-size: 0.65rem;
+    margin-bottom: 0.3rem;
     color: #00ff9f;
     text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
   }
   
   /* NFT ID and contract info */
   .nft-id,
   .nft-contract {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     line-height: 1.2;
     text-align: center;
     margin: 0.1rem 0;
     color: #f0f;
+    word-wrap: break-word;
+    word-break: break-all;
+    width: 100%;
   }
   
-  /* Neon divider */
+  /* Glitch-style divider */
   .nft-divider {
     width: 80%;
     height: 1px;
     background: linear-gradient(90deg, #c200fb, #00ff9f, #c200fb);
-    margin: 0.5rem 0;
-    opacity: 0.7;
+    margin: 0.4rem 0;
+    opacity: 0.75;
+    animation: flickerGlow 2s infinite;
   }
   
-  /* Scrollbar customization for container */
+  /* Scrollbar for the container */
   .nft-container::-webkit-scrollbar {
     width: 6px;
   }
@@ -75,4 +96,23 @@
     background: #7d00b0;
     border-radius: 3px;
   }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.6s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .pixel-glow {
+    box-shadow: 0 0 5px #c200fb, 0 0 10px #00ff9f, inset 0 0 3px #7d00b0;
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .pixel-glow:hover {
+    box-shadow: 0 0 8px #ff00ff, 0 0 12px #00ffff, inset 0 0 4px #c200fb;
+  }
+  
   
