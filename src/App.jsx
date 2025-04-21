@@ -7,6 +7,7 @@ import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
+import './NFT.css';
 import { getWalletClient } from '@wagmi/core'
 import {
   BarChart,
@@ -18,6 +19,41 @@ import {
   CartesianGrid,
   Legend
 } from 'recharts'
+
+const renderNFTs = (nfts, sortBy) => {
+  return (
+    <div className="nft-container">
+      {nfts
+        .map(nft => {
+          // normalize ID once
+          let id = nft.id.tokenId
+          try { id = parseInt(id, 16) } catch {}
+          return { ...nft, displayId: id }
+        })
+        .sort((a, b) => {
+          if (sortBy === 'name') return (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
+          if (sortBy === 'id')   return a.displayId - b.displayId
+          return 0
+        })
+        .map(nft => {
+          const name   = nft.metadata?.name || nft.title || 'Unknown'
+          const imgUrl = nft.media?.[0]?.gateway || ''
+          return (
+            <div
+              className="nft-item"
+              key={`${nft.contract.address}-${nft.displayId}`}>
+              {imgUrl && <img src={imgUrl} alt={name} />}
+              <div className="nft-name">{name}</div>
+              <div className="nft-divider" />
+              <div className="nft-id">ID: {nft.displayId}</div>
+              <div className="nft-contract">{nft.contract.address}</div>
+            </div>
+          )
+        })
+      }
+    </div>
+  )
+}
 
 const MON_TERMINAL_ADDRESS = import.meta.env.VITE_MON_TERMINAL_ADDRESS
 const ACHIEVEMENT_ADDRESS = import.meta.env.VITE_ACHIEVEMENT_NFT_ADDRESS
@@ -488,6 +524,35 @@ function App() {
       setTerminalLines(prev => [...prev.slice(0, -1), `❌ Confirm failed: ${err.message}`])
     }
 
+  // ── SHOW ALL NFTs ───────────────────────────────────────────
+  } else if (cmd === 'show' && sub === 'my' && tokenArg === 'nfts') {
+    // optional sorting flag: --sort=name or --sort=id
+    const sortFlag = rest.find(r => r.startsWith('--sort='))
+    const sortBy   = sortFlag?.split('=')[1] || null
+
+    setTerminalLines(prev => [...prev.slice(0, -1), `> Fetching your NFTs…`])
+    try {
+      const res = await fetch(`${baseApiUrl}/checkNFT`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner: address, command: 'my nfts', type: 'all' })
+      })
+      const { nfts, error } = await res.json()
+      if (error) throw new Error(error)
+
+      if (!nfts.length) {
+        setTerminalLines(prev => [...prev.slice(0, -1), '❌ No NFTs found in your wallet.'])
+      } else {
+        // delegate to our renderNFTs helper
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          renderNFTs(nfts, sortBy)
+        ])
+      }
+    } catch (e) {
+      setTerminalLines(prev => [...prev.slice(0, -1), `❌ Unable to fetch NFTs: ${e.message}`])
+    }
+    
     // ── Fallback Command ──
     } else {
       try {

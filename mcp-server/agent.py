@@ -227,6 +227,94 @@ def simulate_best_price(token):
     except Exception as e:
         return f"❌ Best price fetch error: {str(e)}"
 
+def fetch_nfts(identifier='all'):
+    """
+    Fetch NFTs for the wallet. identifier can be 'all', a contract address, or an NFT name.
+    Returns dict: {'nfts': List, 'error': None or str}
+    """
+    try:
+        resp = requests.post(
+            "https://mon-terminal.onrender.com/api/checkNFT",
+            json={"owner": WALLET_ADDRESS, "command": "my nfts", "type": identifier}
+        )
+        if resp.status_code != 200:
+            return {"nfts": [], "error": f"API returned status {resp.status_code}"}
+        data = resp.json()
+        return {"nfts": data.get('nfts', []), "error": None}
+    except Exception as e:
+        return {"nfts": [], "error": str(e)}
+
+
+def simulate_nft_list(sort_by=None):
+    result = fetch_nfts('all')
+    if result['error']:
+        return f"❌ Error fetching NFTs: {result['error']}"
+    nfts = result['nfts']
+    if not nfts:
+        return "No NFTs found."
+    items = []
+    for nft in nfts:
+        contract = nft.get('contract', {}).get('address', '')
+        metadata = nft.get('metadata', {}) or {}
+        name = metadata.get('name') or nft.get('title') or ''
+        token_id_raw = nft.get('id', {}).get('tokenId', '')
+        try:
+            token_id = int(token_id_raw, 16)
+        except:
+            token_id = token_id_raw
+        items.append({"name": name, "contract": contract, "id": token_id})
+    if sort_by == 'name':
+        items.sort(key=lambda x: x['name'].lower())
+    elif sort_by == 'id':
+        try:
+            items.sort(key=lambda x: int(x['id']))
+        except:
+            pass
+    lines = ["Your NFTs:"]
+    for item in items:
+        lines.append(f"- {item['name']} (Contract: {item['contract']}, ID: {item['id']})")
+    return "\n".join(lines)
+
+
+def simulate_nft_search(keyword):
+    direct = fetch_nfts(keyword)
+    if direct['error']:
+        return f"❌ Error fetching NFTs for '{keyword}': {direct['error']}"
+    nfts = direct['nfts']
+    if nfts:
+        lines = [f"NFTs for '{keyword}':"]
+        for nft in nfts:
+            metadata = nft.get('metadata', {}) or {}
+            name = metadata.get('name') or nft.get('title') or ''
+            token_id_raw = nft.get('id', {}).get('tokenId', '')
+            try:
+                token_id = int(token_id_raw, 16)
+            except:
+                token_id = token_id_raw
+            lines.append(f"- {name} (ID: {token_id})")
+        return "\n".join(lines)
+    all_result = fetch_nfts('all')
+    if all_result['error']:
+        return f"❌ Error fetching all NFTs: {all_result['error']}"
+    matches = []
+    for nft in all_result['nfts']:
+        metadata = nft.get('metadata', {}) or {}
+        name = metadata.get('name') or ''
+        if keyword.lower() in name.lower():
+            contract = nft.get('contract', {}).get('address', '')
+            token_id_raw = nft.get('id', {}).get('tokenId', '')
+            try:
+                token_id = int(token_id_raw, 16)
+            except:
+                token_id = token_id_raw
+            matches.append({"name": name, "contract": contract, "id": token_id})
+    if not matches:
+        return f"No NFTs matching '{keyword}' found."
+    lines = [f"NFTs matching '{keyword}':"]
+    for m in matches:
+        lines.append(f"- {m['name']} (Contract: {m['contract']}, ID: {m['id']})")
+    return "\n".join(lines)
+
 def main():
     args = sys.argv[1:]
     if not args:
@@ -265,13 +353,6 @@ def main():
     elif command == "best" and len(args) > 2 and args[1] == "price" and args[2] == "for":
         token = args[3] if len(args) > 3 else "?"
         print(simulate_best_price(token))
-
-    elif command == "show" and len(args) > 2 and args[1] == "my" and args[2] == "nfts":
-        print(simulate_nft_list())
-
-    elif command == "find" and len(args) > 1 and args[1] == "nft":
-        keyword = args[2] if len(args) > 2 else "???"
-        print(simulate_nft_search(keyword))
 
     elif command == "send" and len(args) > 3 and args[2] == "to":
         print(simulate_send_token(args[1], args[3]))
@@ -341,6 +422,15 @@ def main():
                 print(f"❌ Swap confirm error: {data.get('error', 'Missing transaction data')}")
         except Exception as e:
             print(f"❌ Swap confirm error: {e}")
+
+    elif command == "show" and len(args) > 2 and args[1] == "my" and args[2] == "nfts":
+        sort_by = None
+        if len(args) > 3 and args[3].startswith('--sort='):
+            sort_by = args[3].split('=', 1)[1]
+        print(simulate_nft_list(sort_by))
+    elif command == "find" and len(args) > 1 and args[1] == "nft":
+        keyword = args[2] if len(args) > 2 else ""
+        print(simulate_nft_search(keyword))
 
     else:
         print(f"> {' '.join(args)}\nUnknown command. Type `help` to see available options.")

@@ -17,7 +17,7 @@ const {
 
 // Lowercase token-to-address mapping, using native zero address for MON
 const TOKEN_ADDRESSES = {
-  MON:  '0x0000000000000000000000000000000000000000',
+  MON:  'native',
   USDC: '0xf817257fed379853cde0fa4f97ab987181b1e5ea',
   USDT: '0x88b8e2161dedc77ef4ab7585569d2415a1c1055d',
   DAK:  '0x0f0bdebf0f83cd1ee3974779bcb7315f9808c714',
@@ -84,41 +84,38 @@ router.post('/quote', async (req, res) => {
 })
 
 // Build/confirm endpoint: reuses cached quote or new payload
-router.post('/confirm', async (req, res) => {
-  let { from, to, amount, sender } = req.body
-  if (!from || !to || !amount || !sender) {
-    return res.status(400).json({ success: false, error: 'Missing from, to, amount, or sender.' })
-  }
-
-  from = resolveAddr(from)
-  to   = resolveAddr(to)
-
-  try {
-    const url = new URL(`${MONORAIL_API_URL}/v1/build`)
-    url.searchParams.set('from', from)
-    url.searchParams.set('to', to)
-    url.searchParams.set('amount', amount)
-    url.searchParams.set('sender', sender)
-    url.searchParams.set('slippage', SLIPPAGE)
-    url.searchParams.set('deadline', DEADLINE)
-    url.searchParams.set('max_hops', MAX_HOPS)
-
-    console.log('🔧 Monorail build URL:', url.toString())
-    const resp = await fetch(url.toString())
-    const json = await resp.json()
-
-    if (!resp.ok) {
-      return res.status(resp.status).json({ success: false, error: json.error || 'Monorail build error.' })
+    const text = (await resp.text()).trim()
+    // if JSON, parse; otherwise assume it's a raw tx hex
+    let txObj
+    const contentType = resp.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      txObj = await resp.json()
+      if (!resp.ok) {
+        return res.status(resp.status).json({
+          success: false,
+          error: txObj?.error || 'Monorail API error.'
+        })
+      }
+      if (!txObj.transaction?.rawTransaction) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing rawTransaction in Monorail JSON response.'
+        })
+      }
+      return res.json({ success: true, transaction: txObj.transaction })
+    } else {
+      // plain hex string
+      if (!resp.ok) {
+        return res.status(resp.status).json({
+          success: false,
+          error: `Monorail API error: ${text}`
+        })
+      }
+      // wrap the raw hex into a transaction object
+      return res.json({
+        success: true,
+        transaction: { rawTransaction: text }
+      })
     }
-    if (!json.transaction?.rawTransaction) {
-      return res.status(400).json({ success: false, error: 'Missing rawTransaction in response.' })
-    }
-
-    return res.json({ success: true, transaction: json.transaction })
-  } catch (err) {
-    console.error('❌ Build error:', err)
-    return res.status(500).json({ success: false, error: err.message })
-  }
-})
 
 export default router

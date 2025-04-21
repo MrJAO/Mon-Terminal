@@ -43,15 +43,6 @@
     animation: pulse 2s infinite;
   }
   
-  .achievements-container .badge-icon {
-    width: 64px;
-    height: 64px;
-    margin-bottom: 6px;
-    background-size: cover;
-    background-position: center;
-    image-rendering: pixelated;
-  }
-  
   /* 🔥 Pixel-art styles for each achievement */
 
   .badge-icon {
@@ -62,18 +53,18 @@
     image-rendering: pixelated;
   }
   
-  .badge-icon.badge-green10 { background-image: url('/assets/achievements/green10.png'); }
-  .badge-icon.badge-red10   { background-image: url('/assets/achievements/red10.png'); }
-  .badge-icon.badge-green20 { background-image: url('/assets/achievements/green20.png'); }
-  .badge-icon.badge-red20   { background-image: url('/assets/achievements/red20.png'); }
-  .badge-icon.badge-green30 { background-image: url('/assets/achievements/green30.png'); }
-  .badge-icon.badge-red30   { background-image: url('/assets/achievements/red30.png'); }
-  .badge-icon.badge-green40 { background-image: url('/assets/achievements/green40.png'); }
-  .badge-icon.badge-red40   { background-image: url('/assets/achievements/red40.png'); }
-  .badge-icon.badge-green50 { background-image: url('/assets/achievements/green50.png'); }
-  .badge-icon.badge-red50   { background-image: url('/assets/achievements/red50.png'); }
-  .badge-icon.badge-green_hidden { background-image: url('/assets/achievements/green_hidden.png'); }
-  .badge-icon.badge-red_hidden   { background-image: url('/assets/achievements/red_hidden.png'); }
+  .badge-icon.badge-green10 { background-image: url('/assets/achievements/achievement_1.png'); }
+  .badge-icon.badge-red10   { background-image: url('/assets/achievements/achievement_2.png'); }
+  .badge-icon.badge-green20 { background-image: url('/assets/achievements/achievement_3.png'); }
+  .badge-icon.badge-red20   { background-image: url('/assets/achievements/achievement_4.png'); }
+  .badge-icon.badge-green30 { background-image: url('/assets/achievements/achievement_5.png'); }
+  .badge-icon.badge-red30   { background-image: url('/assets/achievements/achievement_6.png'); }
+  .badge-icon.badge-green40 { background-image: url('/assets/achievements/achievement_7.png'); }
+  .badge-icon.badge-red40   { background-image: url('/assets/achievements/achievement_8.png'); }
+  .badge-icon.badge-green50 { background-image: url('/assets/achievements/achievement_9.png'); }
+  .badge-icon.badge-red50   { background-image: url('/assets/achievements/achievement_10.png'); }
+  .badge-icon.badge-green_hidden { background-image: url('/assets/achievements/achievement_11.png'); }
+  .badge-icon.badge-red_hidden   { background-image: url('/assets/achievements/achievement_12.png'); }
   
   /* Label + Mint */
   .achievements-container .label {
