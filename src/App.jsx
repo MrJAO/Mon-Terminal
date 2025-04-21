@@ -24,8 +24,8 @@ const renderNFTs = (nfts, sortBy) => {
   return (
     <div className="nft-container">
       {nfts
+        .filter(nft => nft?.id?.tokenId) // ✅ skip malformed NFTs
         .map(nft => {
-          // normalize ID once
           let id = nft.id.tokenId
           try { id = parseInt(id, 16) } catch {}
           return { ...nft, displayId: id }

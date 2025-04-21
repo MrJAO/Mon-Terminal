@@ -4,10 +4,20 @@
 
 // TODO: Populate with your actual NFT names and addresses
 const NFT_CONTRACTS = {
-    "CoolArtNFT": "0x78ed9a576519024357ab06d9834266a04c9634b7",
+    "Lil Chogstars": "0x26c86f2835c114571df2b6ce9ba52296cc0fa6bb",
+    "Mystery Token": "0xff59f1e14c4f5522158a0cf029f94475ba469458",
+    "TheDaks": "0x78ed9a576519024357ab06d9834266a04c9634b7",
+    "JikuPass": "0x66bfe7c5c2dc052492938a9f7d50251a47b375ef",
+    "Legacy Eggs": "0xa980f072bc06d67faec2b03a8ada0d6c9d0da9f8",
     "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
-    // Add more entries below:
-    // "MyNFTName": "0xYourContractAddressHere",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
+    "MetaMonkeys": "0x1234567890abcdef1234567890abcdef12345678",
   };
   
   // Build reverse lookup: address (lowercased) to name
