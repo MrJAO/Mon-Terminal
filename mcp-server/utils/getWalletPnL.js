@@ -3,6 +3,12 @@ import { ethers } from 'ethers'
 import { provider } from './provider.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 import fetch from 'node-fetch'
+import { Alchemy, Network } from 'alchemy-sdk'
+
+const alchemyPrice = new Alchemy({
+  apiKey: process.env.ALCHEMY_API_KEY,
+  network: Network.ETH_MAINNET
+})
 
 const DECIMALS_CACHE = {
   MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18, 
@@ -15,28 +21,40 @@ const ERC20_ABI = [
   'function decimals() view returns (uint8)'
 ]
 
-const ALCHEMY_RPC_URL = process.env.ALCHEMY_RPC_URL
+const ALCHEMY_TESTNET_RPC_URL = process.env.ALCHEMY_TESTNET_RPC_URL
+
+const FALLBACK_PRICES = {
+  MON: 10,
+  USDC: 1,
+  USDT: 1,
+  DAK: 2,
+  YAKI: 0.013,
+  CHOG: 0.164,
+  WMON: 10,
+  WETH: 1500,
+  WBTC: 75000,
+  WSOL: 130,
+  BEAN: 2.103,
+  shMON: 10,
+  MAD: 0.098,
+  sMON: 10,
+  aprMON: 10,
+  gMON: 10
+}
 
 async function getPriceFromAlchemy(tokenAddress) {
   try {
-    const body = {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'alchemy_getTokenMetadata',
-      params: [tokenAddress]
-    }
-
-    const res = await fetch(ALCHEMY_RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-
-    const data = await res.json()
-    return parseFloat(data.result?.price?.usd || 0)
+    const metadata = await alchemyPrice.core.getTokenMetadata(tokenAddress)
+    const price = metadata?.price?.usd
+    if (price && !isNaN(price)) return price
+    throw new Error('no USD price in metadata')
   } catch (err) {
     console.warn(`[Alchemy Price Error] ${tokenAddress}:`, err.message)
-    return 0
+    const t = TOKEN_LIST.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase())
+    const sym = t?.symbol?.toUpperCase()
+    return sym && FALLBACK_PRICES[sym] != null
+      ? FALLBACK_PRICES[sym]
+      : 0
   }
 }
 
@@ -56,7 +74,7 @@ async function getRecentTokenTransfers(address, contract) {
       }]
     }
 
-    const res = await fetch(ALCHEMY_RPC_URL, {
+    const res = await fetch(ALCHEMY_TESTNET_RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -112,7 +130,7 @@ export async function getWalletPnL(address, tokenSymbol) {
     return [{
       symbol: token.symbol,
       averageBuyPrice: avgPrice,
-      currentPrice: currentPrice,
+      currentPrice,
       currentBalance,
       currentValue,
       totalCost,

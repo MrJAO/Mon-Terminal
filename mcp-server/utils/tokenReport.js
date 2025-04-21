@@ -1,49 +1,73 @@
 // utils/tokenReport.js
-import fetch from 'node-fetch'
+import { Alchemy, Network } from 'alchemy-sdk'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 
-const ALCHEMY_URL = process.env.ALCHEMY_RPC_URL
+// — Mainnet SDK client for USD prices —
+const alchemyPrice = new Alchemy({
+  apiKey: process.env.ALCHEMY_API_KEY,
+  network: Network.ETH_MAINNET
+})
+
+const FALLBACK_PRICES = {
+  MON: 10,
+  USDC: 1,
+  USDT: 1,
+  DAK: 2,
+  YAKI: 0.013,
+  CHOG: 0.164,
+  WMON: 10,
+  WETH: 1500,
+  WBTC: 75000,
+  WSOL: 130,
+  BEAN: 2.103,
+  shMON: 10,
+  MAD: 0.098,
+  sMON: 10,
+  aprMON: 10,
+  gMON: 10
+}
+
+/**
+ * Fetches a single USD price via Alchemy Mainnet SDK,
+ * falling back to your hardcoded map if necessary.
+ */
+async function getPriceFromAlchemy(tokenAddress) {
+  try {
+    const metadata = await alchemyPrice.core.getTokenMetadata(tokenAddress)
+    const price = metadata?.price?.usd
+    if (price && !isNaN(price)) return price
+    throw new Error('no USD price in metadata')
+  } catch (err) {
+    console.warn(`[Alchemy Price Error] ${tokenAddress}:`, err.message)
+    const token = TOKEN_LIST.find(
+      t => t.address.toLowerCase() === tokenAddress.toLowerCase()
+    )
+    const sym = token?.symbol?.toUpperCase()
+    return sym && FALLBACK_PRICES[sym] != null
+      ? FALLBACK_PRICES[sym]
+      : (() => { throw new Error('No price data available') })()
+  }
+}
 
 async function fetch7DayPrices(tokenAddress) {
-  const body = {
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'alchemy_getTokenMetadata',
-    params: [tokenAddress]
-  }
-
-  const res = await fetch(ALCHEMY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  })
-
-  const contentType = res.headers.get('content-type') || ''
-  if (!contentType.includes('application/json')) {
-    const text = await res.text()
-    console.error(`❌ Alchemy token report error: Non-JSON response - ${text}`)
-    throw new Error('Invalid response from Alchemy (non-JSON)')
-  }
-
-  const data = await res.json()
-  const price = parseFloat(data?.result?.price?.usd || 0)
-  if (!price) throw new Error('No price data available from Alchemy.')
-
-  // Simulate 168 hourly price points over 7 days using the current price
+  // Get a single “current” price (Mainnet or fallback)
+  const price = await getPriceFromAlchemy(tokenAddress)
+  
+  // Simulate 168 hourly points over the past 7 days
   const now = Date.now()
   const hourlyInterval = 60 * 60 * 1000
 
-  const sparkline = Array.from({ length: 168 }, (_, i) => ({
+  return Array.from({ length: 168 }, (_, i) => ({
     timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
     price
   }))
-
-  return sparkline
 }
 
 function analyzeSentiment(prices) {
-  const change = prices[prices.length - 1].price - prices[0].price
-  const percentChange = (change / prices[0].price) * 100
+  const first = prices[0].price
+  const last  = prices[prices.length - 1].price
+  const change = last - first
+  const percentChange = (change / first) * 100
 
   let sentiment = 'neutral'
   if (percentChange > 5) sentiment = 'bullish'

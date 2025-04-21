@@ -5,7 +5,7 @@ import { getTokenReport } from '../utils/tokenReport.js'
 const router = express.Router()
 
 router.post('/', async (req, res) => {
-  const { symbol } = req.body // ← CHANGED from "token" to "symbol"
+  const { symbol } = req.body // Expecting token symbol in request body
 
   if (!symbol) {
     return res.status(400).json({
@@ -18,10 +18,12 @@ router.post('/', async (req, res) => {
     const result = await getTokenReport(symbol)
 
     if (result.error) {
+      // Not found or fallback failed
       return res.status(404).json({ success: false, error: result.error })
     }
 
-    return res.json({ success: true, report: result })
+    // Return the token report under "data" to match client expectations
+    return res.json({ success: true, data: result })
   } catch (err) {
     console.error('❌ Token report error:', err)
     return res.status(500).json({ success: false, error: err.message })

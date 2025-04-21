@@ -1,7 +1,7 @@
 // index.js
 import express from 'express'
 import dotenv from 'dotenv'
-import cors from 'cors' // ✅ Add CORS for cross-origin fetches
+import cors from 'cors'
 
 dotenv.config()
 
@@ -10,12 +10,12 @@ import analyzeRoute from './routes/analyze.js'
 import commandRoute from './api/command.js'
 import balanceRoute from './routes/balance.js'
 import pnlRoute from './api/pnl.js'
-import recordStat from './api/record-stat.js'
+import recordStatRoute from './api/record-stat.js'
 import achievementsAddressRoute from './api/achievements/address.js'
 import achievementsMintRoute from './api/achievements/mint.js'
-import router from './api/swap.js'
+import swapRoute from './api/swap.js'
 import tokenReportRoute from './api/token-report.js'
-import bestPriceRouter from './api/best-price.js'
+import bestPriceRoute from './api/best-price.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -41,20 +41,23 @@ app.use(express.json())
 
 // 🧠 MCP API Routes
 app.use('/api/analyze', analyzeRoute)
-app.use('/analyze', analyzeRoute)
 
-app.use('/api/swap', router)
-console.log("✅ Swap routes mounted at /api/swap")
+// Swap routes (quote & build) via Monorail
+app.use('/api/swap', swapRoute)
+console.log('✅ Swap routes mounted at /api/swap')
 
-// Other routes
+// Other API routes
 app.use('/api/command', commandRoute)
 app.use('/api/balance', balanceRoute)
 app.use('/api/pnl', pnlRoute)
-app.use('/api/record-stat', recordStat)
-app.use('/api/achievements', achievementsAddressRoute)
+app.use('/api/record-stat', recordStatRoute)
+
+// Achievements: mint first, then address lookup
 app.use('/api/achievements/mint', achievementsMintRoute)
+app.use('/api/achievements', achievementsAddressRoute)
+
 app.use('/api/token-report', tokenReportRoute)
-app.use('/api/best-price', bestPriceRouter)
+app.use('/api/best-price', bestPriceRoute)
 
 // ✅ Root healthcheck
 app.get('/', (req, res) => {

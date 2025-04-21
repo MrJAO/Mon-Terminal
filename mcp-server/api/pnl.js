@@ -1,4 +1,4 @@
-// mcp-server/api/pnl.js
+// api/pnl.js
 import express from 'express'
 import { getWalletPnL } from '../utils/getWalletPnL.js'
 
@@ -17,6 +17,7 @@ router.post('/', async (req, res) => {
   try {
     const pnlData = await getWalletPnL(address, token)
 
+    // If the first entry contains an error, send 404
     if (!Array.isArray(pnlData) || pnlData.length === 0 || pnlData[0]?.error) {
       return res.status(404).json({
         success: false,
@@ -24,9 +25,10 @@ router.post('/', async (req, res) => {
       })
     }
 
-    return res.json({ success: true, pnl: pnlData })
+    // Return the PnL data under 'data' for consistency
+    return res.json({ success: true, data: pnlData })
   } catch (error) {
-    console.error(`❌ Error in /api/pnl for ${token}:`, error?.stack || error)
+    console.error(`❌ Error in /api/pnl for ${token}:`, error.stack || error)
     return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error',

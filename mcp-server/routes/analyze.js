@@ -5,24 +5,21 @@ dotenv.config()
 import express from 'express'
 import cors from 'cors'
 import { ethers } from 'ethers'
-import pkg from 'alchemy-sdk'
+import fetch from 'node-fetch'
 import dexContracts from './dexContracts.js'
 
-const { Alchemy, Network } = pkg
 const router = express.Router()
 
 router.use(cors())
 router.use(express.json())
 
-const ALCHEMY_SETTINGS = {
-  apiKey: process.env.ALCHEMY_API_KEY,
-  network: Network.MONAD_TESTNET // ✅ Ensure this is available in current SDK
-}
+// Provider for Monad Testnet
+const provider = new ethers.JsonRpcProvider(
+  process.env.ALCHEMY_TESTNET_RPC_URL || 'https://testnet-rpc.monad.xyz',
+  { chainId: 10143, name: 'monad-testnet' }
+)
 
-const alchemy = new Alchemy(ALCHEMY_SETTINGS)
-const provider = new ethers.JsonRpcProvider(process.env.ALCHEMY_RPC_URL)
-
-// 🔁 Retry helper
+// Retry helper for robustness
 async function retry(fn, retries = 2, delay = 500) {
   try {
     return await fn()
@@ -46,24 +43,32 @@ router.post('/', async (req, res) => {
   try {
     console.log(`🔍 Analyzing address: ${address}`)
 
+    // Total transaction count
     const totalTxCount = await provider.getTransactionCount(address)
+
+    // Determine block range (10% of a day's blocks)
     const latestBlock = await provider.getBlockNumber()
     const blocksPerDay = 7200
     const scanDepth = Math.floor(blocksPerDay * 0.1)
     const fromBlock = Math.max(0, latestBlock - scanDepth)
 
+    // Initialize DEX interaction counters
     const recentDexCounts = Object.fromEntries(
       Object.keys(dexContracts).map(name => [name, 0])
     )
 
+    // Scan each block in range
     for (let blockNumber = fromBlock; blockNumber <= latestBlock; blockNumber++) {
       if ((blockNumber - fromBlock) % 50 === 0) {
         console.log(`🌀 Scanning block ${blockNumber}...`)
       }
 
+      // Fetch block with full transactions
       let block
       try {
-        block = await retry(() => provider.getBlock(blockNumber, true), 2)
+        block = await retry(() =>
+          provider.getBlockWithTransactions(blockNumber)
+        )
       } catch (err) {
         console.warn(`⚠️ Block ${blockNumber} failed: ${err.message}`)
         continue
@@ -71,14 +76,20 @@ router.post('/', async (req, res) => {
 
       if (!block?.transactions?.length) continue
 
+      // Inspect each transaction
       for (const tx of block.transactions) {
-        if ((tx.from?.toLowerCase() === address || tx.to?.toLowerCase() === address) && tx.data) {
-          const methodId = tx.data.slice(0, 10).toLowerCase()
-          const txTo = tx.to?.toLowerCase()
+        const from = tx.from?.toLowerCase()
+        const to = tx.to?.toLowerCase()
+        const data = tx.data || ''
 
+        // Only transactions involving the address with calldata
+        if ((from === address || to === address) && data.length >= 10) {
+          const methodId = data.slice(0, 10).toLowerCase()
+
+          // Check against known DEX contracts and methods
           for (const [dexName, dexInfo] of Object.entries(dexContracts)) {
             if (
-              txTo === dexInfo.address.toLowerCase() ||
+              to === dexInfo.address.toLowerCase() ||
               dexInfo.methodIds.map(i => i.toLowerCase()).includes(methodId)
             ) {
               recentDexCounts[dexName]++
@@ -89,24 +100,31 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // ✅ NFT Holdings via Alchemy
+    // NFT Holdings via Alchemy NFT API
     let nftHoldings = { total: 0, verified: 0, unverified: 0 }
     try {
-      const nftResponse = await alchemy.nft.getNftsForOwner(address)
-      const allNfts = nftResponse.ownedNfts || []
+      const nftRes = await fetch(
+        `https://monad-testnet.g.alchemy.com/nft/v2/${process.env.ALCHEMY_API_KEY}/getNFTs?owner=${address}`
+      )
+      const nftData = await nftRes.json()
+      const allNfts = nftData.ownedNfts || []
+
+      // Customize your list of verified contract addresses
       const verifiedContracts = ['0xabc123...', '0xdef456...']
       const verified = allNfts.filter(n =>
         verifiedContracts.includes(n.contract.address.toLowerCase())
       ).length
+
       nftHoldings = {
         total: allNfts.length,
         verified,
         unverified: allNfts.length - verified
       }
     } catch (err) {
-      console.warn('⚠️ Alchemy NFT fetch failed:', err.message)
+      console.warn('⚠️ NFT fetch failed:', err.message)
     }
 
+    // Determine activity level
     const activityLevel =
       totalTxCount >= 5000 ? 'High' :
       totalTxCount >= 1000 ? 'Intermediate' :

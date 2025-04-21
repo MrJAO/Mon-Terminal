@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract, useSendTransaction } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract } from 'wagmi'
 import { Typewriter } from 'react-simple-typewriter'
 import TOKEN_LIST from './constants/tokenList'
 import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
@@ -8,7 +8,6 @@ import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
 import { getWalletClient } from '@wagmi/core'
-import { hexlify } from 'ethers'
 import {
   BarChart,
   Bar,
@@ -26,25 +25,23 @@ const baseApiUrl = import.meta.env.PROD
   ? 'https://mon-terminal.onrender.com/api'
   : '/api'
 
-
 function App() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { writeContractAsync } = useWriteContract()
-  const { sendTransaction } = useSendTransaction()
 
   const [hasTyped, setHasTyped] = useState(false)
   const [terminalLines, setTerminalLines] = useState([])
   const [pnlChartData, setPnlChartData] = useState(null)
   const [currentPnL, setCurrentPnL] = useState(null)
-  const [isCooldownActive, setIsCooldownActive] = useState(false)
-  const [cooldownTimestamp, setCooldownTimestamp] = useState(null)
-
   const [achievements, setAchievements] = useState({})
-  const [showAchievementsUI, setShowAchievementsUI] = useState(false) // ✅ Add this line
+  const [showAchievementsUI, setShowAchievementsUI] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzeProgress, setAnalyzeProgress] = useState('')  
+  const [lastSwapQuote, setLastSwapQuote] = useState(null)
+  const [isCooldownActive, setIsCooldownActive] = useState(false)
+  const [cooldownTimestamp, setCooldownTimestamp] = useState(null)
 
   const achievementNames = {
     green10: "Profit Initiate",
@@ -158,73 +155,60 @@ function App() {
   }
 
   const handleCommandInput = async (e) => {
-    if (e.key === 'Enter') {
-      const input = e.target.value.trim()
-      e.target.value = ''
-      if (!input) return
-  
-      setPnlChartData(null)
-      setShowAchievementsUI(false) // 🧠 hide achievements section by default
-  
-      setTerminalLines(prev => [...prev, `> ${input}`, '> Mon Terminal is thinking...'])
-  
-      const [cmd, ...rest] = input.split(' ')
-      const sub = rest[0]
-      const tokenArg = rest[1]
-  
-      // ───── PnL ─────
-      if (cmd === 'check' && sub === 'pnl') {
-        const token = tokenArg?.toUpperCase()
-        if (!token) {
-          setTerminalLines(prev => [...prev, '> Please specify a token symbol for PnL (e.g., check pnl DAK)'])
-          return
-        }
-        try {
-          const res = await fetch(`${baseApiUrl}/pnl`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address, token })
+    if (e.key !== 'Enter') return
+    const input = e.target.value.trim()
+    e.target.value = ''
+    if (!input) return
+
+    setPnlChartData(null)
+    setShowAchievementsUI(false)
+    setTerminalLines(prev => [...prev, `> ${input}`, '> Mon Terminal is thinking...'])
+
+    const [cmd, sub, tokenArg, ...rest] = input.split(' ')
+
+    // ── PnL ──
+    if (cmd === 'check' && sub === 'pnl') {
+      const token = tokenArg?.toUpperCase()
+      if (!token) {
+        setTerminalLines(prev => [...prev, '> Please specify a token symbol (e.g., check pnl DAK)'])
+        return
+      }
+      try {
+        const res = await fetch(`${baseApiUrl}/pnl`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, token })
+        })
+        const data = await res.json()
+        if (data.success && Array.isArray(data.data) && data.data[0] && !data.data[0].error) {
+          const entry = data.data[0]
+          const output = [
+            `PNL Report for ${entry.symbol}`,
+            `- Average Buy Price: $${entry.averageBuyPrice.toFixed(4)}`,
+            `- Current Price:     $${entry.currentPrice.toFixed(4)}`,
+            `- Current Balance:   ${entry.currentBalance.toFixed(6)} ${entry.symbol}`,
+            `- Current Value:     $${entry.currentValue.toFixed(2)}`,
+            `- Total Cost:        $${entry.totalCost.toFixed(2)}`,
+            `- PnL:               $${entry.pnl.toFixed(2)}`
+          ].join('\n')
+
+          setCurrentPnL(entry.pnl)
+          setPnlChartData([
+            { label: 'Buy', value: entry.totalCost },
+            { label: 'Now', value: entry.currentValue },
+            { label: 'PnL', value: entry.pnl }
+          ])
+
+          setTerminalLines(prev => {
+            const lines = prev.slice(0, -1)
+            return [...lines, output]
           })
-          const data = await res.json()
-          if (data.success && data.pnl?.[0] && !data.pnl[0].error) {
-            const entry = data.pnl[0]
-            const output = [
-              `PNL Report for ${entry.symbol}`,
-              `- Average Buy Price: $${entry.averageBuyPrice.toFixed(4)}`,
-              `- Current Price:     $${entry.currentPrice.toFixed(4)}`,
-              `- Current Balance:   ${entry.currentBalance.toFixed(6)} ${entry.symbol}`,
-              `- Current Value:     $${entry.currentValue.toFixed(2)}`,
-              `- Total Cost:        $${entry.totalCost.toFixed(2)}`,
-              `- PnL:               $${entry.pnl.toFixed(2)}`
-            ].join('\n')
-  
-            setCurrentPnL(parseFloat(entry.pnl.toFixed(6)))
-            setPnlChartData([
-              { label: 'Buy', value: parseFloat(entry.totalCost.toFixed(2)) },
-              { label: 'Now', value: parseFloat(entry.currentValue.toFixed(2)) },
-              { label: 'PnL', value: parseFloat(entry.pnl.toFixed(2)) }
-            ])
-  
-            setTerminalLines(prev => {
-              const newLines = [...prev]
-              newLines.pop()
-              return [...newLines, output]
-            })
-          } else {
-            setPnlChartData(null)
-            setCurrentPnL(null)
-            const errorMsg = data.pnl?.[0]?.error || data.error || 'Unable to fetch PnL data.'
-            setTerminalLines(prev => {
-              const newLines = [...prev]
-              newLines.pop()
-              return [...newLines, `❌ ${errorMsg}`]
-            })
-          }
-        } catch (err) {
-          setPnlChartData(null)
-          setCurrentPnL(null)
-          setTerminalLines(prev => [...prev, '❌ Mon Terminal is not responding.'])
+        } else {
+          const errMsg = data.data?.[0]?.error || data.error || 'Unable to fetch PnL data.'
+          setTerminalLines(prev => [...prev.slice(0, -1), `❌ ${errMsg}`])
         }
+      } catch {
+        setTerminalLines(prev => [...prev.slice(0, -1), '❌ Mon Terminal is not responding.'])
+      }
   
       } else if ((cmd === 'my' && sub === 'achievements') || cmd === 'achievements') {
         try {
@@ -363,50 +347,39 @@ function App() {
           })
         }
 
-      // ───── Token Report ─────
-    } else if (cmd === 'token' && sub === 'report') {
-      const symbol = tokenArg?.toUpperCase()
-      if (!symbol) {
-        setTerminalLines(prev => [...prev, `❌ Please specify a token (e.g. token report MON)`])
-        return
-      }
+    // ── Token Report ──
+  } else if (cmd === 'token' && sub === 'report') {
+    const symbol = tokenArg?.toUpperCase()
+    if (!symbol) {
+      setTerminalLines(prev => [...prev, '> Please specify a token (e.g. token report MON)'])
+      return
+    }
 
-      try {
-        const res = await fetch(`${baseApiUrl}/token-report`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol })
-        })
-        const data = await res.json()
-
-        if (data.success) {
-          const r = data.report
-          setTerminalLines(prev => {
-            const lines = [...prev]
-            lines.pop()
-            return [
-              ...lines,
-              <div className="token-report-box">
-                <p>📊 <strong>Token Report for {symbol}</strong></p>
-                <p>- 7d Price Change: <span className="highlight-green">{r.priceChangePercent}%</span></p>
-                <p>- Sentiment: <span className={`sentiment ${r.sentiment.toLowerCase()}`}>{r.sentiment}</span></p>
-                <p>- Chart: <a href={r.chartLink} target="_blank" className="token-link">View Chart</a></p>
-              </div>
-            ]
-          })
-          
-        } else {
-          setTerminalLines(prev => {
-            const lines = [...prev]; lines.pop()
-            return [...lines, `❌ Token report error: ${data.error || 'Unknown error'}`]
-          })
-        }
-      } catch (err) {
+    try {
+      const res = await fetch(`${baseApiUrl}/token-report`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol })
+      })
+      const data = await res.json()
+      if (data.success) {
+        const r = data.data
         setTerminalLines(prev => {
-          const lines = [...prev]; lines.pop()
-          return [...lines, `❌ Token report fetch failed.`]
+          const lines = prev.slice(0, -1)
+          return [
+            ...lines,
+            <div className="token-report-box">
+              <p>📊 <strong>Token Report for {symbol}</strong></p>
+              <p>- 7d Price Change: <span>{r.percentChange}%</span></p>
+              <p>- Sentiment: <span className={r.sentiment.toLowerCase()}>{r.sentiment}</span></p>
+            </div>
+          ]
         })
-      }     
+      } else {
+        setTerminalLines(prev => [...prev.slice(0, -1), `❌ ${data.error || 'Unknown error'}`])
+      }
+    } catch {
+      setTerminalLines(prev => [...prev.slice(0, -1), '❌ Token report fetch failed.'])
+    }     
 
     } else if (cmd === 'best' && sub === 'price' && rest[0] === 'for') {
       const token = rest[1]?.toUpperCase()
@@ -444,135 +417,85 @@ function App() {
         })
       }    
 
-  // ───── Swap Quote ─────
-} else if (cmd === 'swap' && sub !== 'confirm' && rest[2] === 'to') {
-  const fromSymbol = sub.toUpperCase()
-  const amount     = rest[1]
-  const toSymbol   = rest[3].toUpperCase()
+    // ── Swap Quote ──
+  } else if (cmd === 'swap' && sub && rest[0] === 'to') {
+    const fromSymbol = sub.toUpperCase()
+    const amount = rest[1]
+    const toSymbol = rest[2].toUpperCase()
 
-  const fromInfo = TOKEN_LIST.find(t => t.symbol === fromSymbol)
-  const toInfo   = TOKEN_LIST.find(t => t.symbol === toSymbol)
-  if (!fromInfo || !toInfo) {
-    setTerminalLines(prev => {
-      const lines = [...prev]; lines.pop()
-      const bad = !fromInfo ? fromSymbol : toSymbol
-      return [...lines, `❌ Unknown token symbol: ${bad}`]
-    })
-    return
-  }
-  const fromAddr = fromInfo.address
-  const toAddr   = toInfo.address
+    const fromInfo = TOKEN_LIST.find(t => t.symbol === fromSymbol)
+    const toInfo   = TOKEN_LIST.find(t => t.symbol === toSymbol)
+    if (!fromInfo || !toInfo) {
+      setTerminalLines(prev => [...prev.slice(0, -1), `❌ Unknown token: ${!fromInfo ? fromSymbol : toSymbol}`])
+      return
+    }
+    const from = fromInfo.address
+    const to   = toInfo.address
 
-  setTerminalLines(prev => [...prev, `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`])
-  try {
-    const res = await fetch(`${baseApiUrl}/swap/quote`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from:   fromAddr,
-        to:     toAddr,
-        amount,
-        sender: address
+    setTerminalLines(prev => [...prev.slice(0, -1), `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`])
+    try {
+      const res = await fetch(`${baseApiUrl}/swap/quote`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to, amount, sender: address })
       })
-    })
-    const data = await res.json()
-    if (data.success) {
-      const q = data.quote
-      setTerminalLines(prev => {
-        const lines = [...prev]; lines.pop()
-        return [
-          ...lines,
+      const data = await res.json()
+      if (data.success) {
+        const q = data.quote
+        setLastSwapQuote({ from, to, amount, sender: address })
+        setTerminalLines(prev => [...prev.slice(0, -1),
           `Quote:`,
           `- You send:       ${q.input_formatted} ${fromSymbol}`,
           `- You’ll receive: ${q.output_formatted} ${toSymbol}`,
           `- Min receive:    ${q.min_output_formatted} ${toSymbol}`,
-          `- Price impact:   ${(Number(q.compound_impact) * 100).toFixed(2)}%`,
-          `Type: confirm ${fromSymbol} ${amount} to ${toSymbol}`
-        ]
-      })
-    } else {
-      setTerminalLines(prev => {
-        const lines = [...prev]; lines.pop()
-        return [...lines, `❌ ${data.error}`]
-      })
+          `- Price impact:   ${(q.compound_impact * 100).toFixed(2)}%`,
+          `Type: confirm to execute swap`
+        ])
+      } else {
+        setTerminalLines(prev => [...prev.slice(0, -1), `❌ ${data.error}`])
+      }
+    } catch {
+      setTerminalLines(prev => [...prev.slice(0, -1), '❌ Swap quote failed.'])
     }
-  } catch {
-    setTerminalLines(prev => {
-      const lines = [...prev]; lines.pop()
-      return [...lines, '❌ Swap quote failed.']
-    })
-  }
 
-    // ───── Swap Execute ─────
+  // ── Swap Confirm ──
   } else if (cmd === 'confirm') {
-    setTerminalLines(prev => [...prev, `> Sending last swap…`])
+    if (!lastSwapQuote) {
+      setTerminalLines(prev => [...prev.slice(0, -1), '❌ No swap quote available.'])
+      return
+    }
+    setTerminalLines(prev => [...prev.slice(0, -1), '> Executing swap...'])
     try {
-      const res = await fetch(`${baseApiUrl}/swap/confirm/last`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender: address })
+      const res = await fetch(`${baseApiUrl}/swap/confirm`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lastSwapQuote)
       })
       const data = await res.json()
-
-      if (!data.success) {
-        setTerminalLines(prev => {
-          const lines = [...prev]; lines.pop()
-          return [...lines, `❌ ${data.error}`]
-        })
-        return
+      if (data.success) {
+        const txObj = data.transaction
+        const walletClient = await getWalletClient()
+        const txHash = await walletClient.sendRawTransaction({ serializedTransaction: txObj.rawTransaction })
+        setTerminalLines(prev => [...prev.slice(0, -1), `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`])
+      } else {
+        setTerminalLines(prev => [...prev.slice(0, -1), `❌ ${data.error}`])
       }
-
-      const txObj = data.transaction
-      if (!txObj?.to || !txObj?.data) {
-        setTerminalLines(prev => {
-          const lines = [...prev]; lines.pop()
-          return [...lines, `❌ Invalid transaction object.`]
-        })
-        return
-      }
-
-      const walletClient = await getWalletClient()
-      if (!walletClient) throw new Error('Wallet client not available.')
-
-      const txHash = await walletClient.sendRawTransaction({
-        serializedTransaction: txObj.rawTransaction
-      })
-
-      setTerminalLines(prev => {
-        const lines = [...prev]; lines.pop()
-        return [...lines, `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`]
-      })
     } catch (err) {
-      console.error("❌ Confirm error:", err)
-      setTerminalLines(prev => {
-        const lines = [...prev]; lines.pop()
-        return [...lines, `❌ Confirm failed: ${err.message}`]
-      })
+      setTerminalLines(prev => [...prev.slice(0, -1), `❌ Confirm failed: ${err.message}`])
     }
 
+    // ── Fallback Command ──
     } else {
       try {
         const res = await fetch(`${baseApiUrl}/command`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command: input })
         })
         const data = await res.json()
-        setTerminalLines(prev => {
-          const lines = [...prev]
-          if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
-          return [...lines, data.response]
-        })
+        setTerminalLines(prev => [...prev.slice(0, -1), data.data || data.error])
       } catch {
-        setTerminalLines(prev => {
-          const lines = [...prev]
-          if (lines[lines.length - 1] === '> Mon Terminal is thinking...') lines.pop()
-          return [...lines, '> Unknown command.']
-        })
+        setTerminalLines(prev => [...prev.slice(0, -1), '❌ Mon Terminal is not responding.'])
       }
     }
   }
-}
 
   const initialInfo = [
     '> Wallet Connected',

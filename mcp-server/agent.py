@@ -28,7 +28,6 @@ TOKEN_ADDRESSES = {
     'gMON':   "0xaEef2f6B429Cb59C9B2D7bB2141ADa993E8571c3"
 }
 
-
 # Achievement mapping
 achievementNames = {
     "green10": "Profit Initiate",
@@ -196,17 +195,18 @@ def simulate_mint(ach_id):
 
 def simulate_token_report(token):
     try:
-        response = requests.post("https://mon-terminal.onrender.com/api/token-report", json={
-            "symbol": token
-        })
+        response = requests.post(
+            "https://mon-terminal.onrender.com/api/token-report",
+            json={"symbol": token}
+        )
         data = response.json()
         if data.get("success"):
-            info = data["report"]
+            # updated key for report data
+            info = data.get("data", {})
             return (
                 f"📊 Token Report for {token.upper()}:\n"
-                f"- 7d Price Change: {info['priceChangePercent']}%\n"
-                f"- Sentiment:       {info['sentiment']}\n"
-                f"- Chart (last 7d): {info['chartLink']}"
+                f"- 7d Price Change: {info.get('percentChange', '0.00')}%\n"
+                f"- Sentiment:       {info.get('sentiment', 'neutral')}"
             )
         else:
             return f"❌ Token report error: {data.get('error', 'Unknown error')}"
