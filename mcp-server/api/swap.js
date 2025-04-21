@@ -15,7 +15,6 @@ const {
   MAX_HOPS = '3'        // default max hops
 } = process.env
 
-// Lowercase token-to-address mapping, using native zero address for MON
 const TOKEN_ADDRESSES = {
   MON:  'native',
   USDC: '0xf817257fed379853cde0fa4f97ab987181b1e5ea',
@@ -35,18 +34,15 @@ const TOKEN_ADDRESSES = {
   gMON: '0xaeef2f6b429cb59c9b2d7bb2141ada993e8571c3',
 }
 
-// Resolve a symbol or direct address to a valid Monorail contract address
 function resolveAddr(input) {
   const sym = input.toUpperCase()
   return TOKEN_ADDRESSES[sym] || input
 }
 
-// A simple healthcheck for this router
 router.get('/test', (req, res) => {
   res.json({ success: true, message: 'Swap route is loaded' })
 })
 
-// Quote endpoint: caches last quote for confirm
 router.post('/quote', async (req, res) => {
   let { from, to, amount, sender } = req.body
   if (!from || !to || !amount || !sender) {
@@ -74,7 +70,6 @@ router.post('/quote', async (req, res) => {
       return res.status(resp.status).json({ success: false, error: json.error || 'Monorail quote error.' })
     }
 
-    // Cache for confirm
     global._LAST_SWAP_QUOTE = { from, to, amount, sender }
     return res.json({ success: true, quote: json })
   } catch (err) {
@@ -83,13 +78,33 @@ router.post('/quote', async (req, res) => {
   }
 })
 
-// Build/confirm endpoint: reuses cached quote or new payload
+// ✅ Build/confirm endpoint fixed and wrapped correctly
+router.post('/confirm', async (req, res) => {
+  const { from, to, amount, sender } = req.body || global._LAST_SWAP_QUOTE || {}
+
+  if (!from || !to || !amount || !sender) {
+    return res.status(400).json({ success: false, error: 'Missing from, to, amount, or sender.' })
+  }
+
+  try {
+    const url = new URL(`${MONORAIL_API_URL}/v1/build`)
+    url.searchParams.set('from', from)
+    url.searchParams.set('to', to)
+    url.searchParams.set('amount', amount)
+    url.searchParams.set('sender', sender)
+    url.searchParams.set('slippage', SLIPPAGE)
+    url.searchParams.set('deadline', DEADLINE)
+    url.searchParams.set('max_hops', MAX_HOPS)
+
+    console.log('🚀 Monorail build URL:', url.toString())
+    const resp = await fetch(url.toString())
     const text = (await resp.text()).trim()
-    // if JSON, parse; otherwise assume it's a raw tx hex
-    let txObj
+
     const contentType = resp.headers.get('content-type') || ''
+    let txObj
+
     if (contentType.includes('application/json')) {
-      txObj = await resp.json()
+      txObj = JSON.parse(text)
       if (!resp.ok) {
         return res.status(resp.status).json({
           success: false,
@@ -104,18 +119,21 @@ router.post('/quote', async (req, res) => {
       }
       return res.json({ success: true, transaction: txObj.transaction })
     } else {
-      // plain hex string
       if (!resp.ok) {
         return res.status(resp.status).json({
           success: false,
           error: `Monorail API error: ${text}`
         })
       }
-      // wrap the raw hex into a transaction object
       return res.json({
         success: true,
         transaction: { rawTransaction: text }
       })
     }
+  } catch (err) {
+    console.error('❌ Confirm error:', err)
+    return res.status(500).json({ success: false, error: err.message })
+  }
+})
 
 export default router
