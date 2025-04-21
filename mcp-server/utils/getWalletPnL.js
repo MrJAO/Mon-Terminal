@@ -10,73 +10,66 @@ const DECIMALS_CACHE = {
   sMON: 18, aprMON: 18, gMON: 18
 }
 
-const TESTNET_PRICE_FALLBACK = {
-  MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164, WMON: 10,
-  WETH: 1500, WBTC: 75000, WSOL: 130, BEAN: 2.103, shMON: 10, MAD: 0.098,
-  sMON: 10, aprMON: 10, gMON: 10
-}
-
 const ERC20_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)'
 ]
 
-// Get token price from Zerion API quote endpoint
-async function getPriceFromZerion(walletAddress, tokenAddress) {
+// Fetch token price using Alchemy's Prices API
+async function getPriceFromAlchemy(tokenAddress) {
   try {
-    const url = new URL(`https://api.zerion.io/v1/wallets/${walletAddress}/positions`)
-    url.searchParams.set('filter[asset]', tokenAddress)
+    const url = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+    const body = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'alchemy_getTokenMetadata',
+      params: [tokenAddress]
+    }
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${process.env.ZERION_API_KEY}`,
-        'X-Env': 'test'
-      }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
     })
 
     const data = await res.json()
-    const tokenData = data?.data?.[0]?.attributes
-
-    if (tokenData?.price) {
-      return parseFloat(tokenData.price?.value)
-    }
+    return parseFloat(data.result?.price?.usd || 0)
   } catch (err) {
-    console.warn(`[Zerion Price Error] ${tokenAddress}:`, err.message)
+    console.warn(`[Alchemy Price Error] ${tokenAddress}:`, err.message)
+    return 0
   }
-  return TESTNET_PRICE_FALLBACK[tokenAddress.toUpperCase()] || 0
 }
 
+// Fetch recent token transfers using Alchemy's Transfers API
 async function getRecentTokenTransfers(address, contract) {
-  const ALCHEMY_URL = process.env.ALCHEMY_RPC_URL
-  const ALCHEMY_HEADERS = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${process.env.ALCHEMY_API_KEY}`
+  try {
+    const url = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+    const body = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'alchemy_getAssetTransfers',
+      params: [{
+        fromBlock: '0x0',
+        toAddress: address,
+        contractAddresses: [contract],
+        category: ['erc20'],
+        maxCount: '0x5',
+        withMetadata: true
+      }]
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+
+    const data = await res.json()
+    return data?.result?.transfers || []
+  } catch (err) {
+    console.warn(`[Alchemy Transfers Error] ${contract}:`, err.message)
+    return []
   }
-
-  if (!ALCHEMY_URL) throw new Error('Missing ALCHEMY_RPC_URL in environment variables')
-
-  const body = {
-    id: 1,
-    jsonrpc: '2.0',
-    method: 'alchemy_getAssetTransfers',
-    params: [{
-      fromBlock: '0x0',
-      toAddress: address,
-      contractAddresses: [contract],
-      category: ['erc20'],
-      maxCount: '0x5',
-      withMetadata: true
-    }]
-  }
-
-  const res = await fetch(ALCHEMY_URL, {
-    method: 'POST',
-    headers: ALCHEMY_HEADERS,
-    body: JSON.stringify(body)
-  })
-
-  const data = await res.json()
-  return data?.result?.transfers || []
 }
 
 export async function getWalletPnL(address, tokenSymbol) {
@@ -96,7 +89,7 @@ export async function getWalletPnL(address, tokenSymbol) {
 
     for (const tx of transfers) {
       const amount = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
-      const price = await getPriceFromZerion(checksummedAddress, token.address)
+      const price = await getPriceFromAlchemy(token.address)
       if (!price) continue
 
       totalAmount += amount
@@ -114,7 +107,7 @@ export async function getWalletPnL(address, tokenSymbol) {
     }
 
     const currentBalance = parseFloat(ethers.formatUnits(rawBalance, decimals))
-    const currentPrice = await getPriceFromZerion(checksummedAddress, token.address)
+    const currentPrice = await getPriceFromAlchemy(token.address)
     const currentValue = currentBalance * currentPrice
     const pnl = currentValue - totalCost
 

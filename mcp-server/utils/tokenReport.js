@@ -3,32 +3,43 @@ import fetch from 'node-fetch'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 
 async function fetch7DayPrices(tokenAddress) {
-  const DUMMY_WALLET = process.env.ZERION_DUMMY_WALLET || '0xd9F016e453dE48D877e3f199E8FA4aADca2E979C'
-  const url = new URL(`https://api.zerion.io/v1/wallets/${DUMMY_WALLET}/positions`)
-  url.searchParams.set('filter[asset]', tokenAddress)
+  const ALCHEMY_URL = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      'Authorization': `Bearer ${process.env.ZERION_API_KEY}`,
-      'X-Env': 'test'
-    }
-  })
-
-  const data = await res.json()
-  const sparkline = data?.data?.[0]?.attributes?.price?.sparkline
-
-  if (!Array.isArray(sparkline) || sparkline.length === 0) {
-    throw new Error('No sparkline (price history) data available.')
+  const body = {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'alchemy_getTokenMetadata',
+    params: [tokenAddress]
   }
 
-  // Convert sparkline points into timestamped points (assuming 7d = 168 hrs)
+  const res = await fetch(ALCHEMY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    const text = await res.text()
+    console.error(`❌ Alchemy token report error: Non-JSON response - ${text}`)
+    throw new Error('Invalid response from Alchemy (non-JSON)')
+  }
+
+  const data = await res.json()
+  const price = parseFloat(data?.result?.price || 0)
+  if (!price) throw new Error('No price data available from Alchemy.')
+
+  // Simulate hourly price points over 7 days (168 points, all same price for now)
   const now = Date.now()
   const hourlyInterval = 60 * 60 * 1000
-  return sparkline.map((price, i) => ({
-    timestamp: new Date(now - (sparkline.length - 1 - i) * hourlyInterval).toISOString(),
+
+  const sparkline = Array.from({ length: 168 }, (_, i) => ({
+    timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
     price
   }))
-} 
+
+  return sparkline
+}
 
 function analyzeSentiment(prices) {
   const change = prices[prices.length - 1].price - prices[0].price
