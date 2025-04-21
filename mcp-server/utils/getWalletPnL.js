@@ -21,27 +21,29 @@ const ERC20_ABI = [
   'function decimals() view returns (uint8)'
 ]
 
-// Get token price from Monorail API quote endpoint
-async function getPriceFromMonorail(fromToken, symbol) {
+// Get token price from Zerion API quote endpoint
+async function getPriceFromZerion(walletAddress, tokenAddress) {
   try {
-    const url = new URL(`https://testnet-pathfinder-v2.monorail.xyz/v1/quote`)
-    url.searchParams.set('from', fromToken)
-    url.searchParams.set('to', 'native')
-    url.searchParams.set('amount', 1)
-    url.searchParams.set('sender', '0x0000000000000000000000000000000000000001')
-    url.searchParams.set('slippage', '100')
-    url.searchParams.set('deadline', '60')
+    const url = new URL(`https://api.zerion.io/v1/wallets/${walletAddress}/positions`)
+    url.searchParams.set('filter[asset]', tokenAddress)
 
-    const res = await fetch(url.toString())
+    const res = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${process.env.ZERION_API_KEY}`,
+        'X-Env': 'test'
+      }
+    })
+
     const data = await res.json()
+    const tokenData = data?.data?.[0]?.attributes
 
-    if (data?.output_formatted && data?.input_formatted) {
-      return parseFloat(data.output_formatted) / parseFloat(data.input_formatted)
+    if (tokenData?.price) {
+      return parseFloat(tokenData.price?.value)
     }
   } catch (err) {
-    console.warn(`[Monorail Price Error] ${symbol}:`, err.message)
+    console.warn(`[Zerion Price Error] ${tokenAddress}:`, err.message)
   }
-  return TESTNET_PRICE_FALLBACK[symbol.toUpperCase()] || 0
+  return TESTNET_PRICE_FALLBACK[tokenAddress.toUpperCase()] || 0
 }
 
 async function getRecentTokenTransfers(address, contract) {
@@ -94,7 +96,7 @@ export async function getWalletPnL(address, tokenSymbol) {
 
     for (const tx of transfers) {
       const amount = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
-      const price = await getPriceFromMonorail(token.address, token.symbol)
+      const price = await getPriceFromZerion(checksummedAddress, token.address)
       if (!price) continue
 
       totalAmount += amount
@@ -112,7 +114,7 @@ export async function getWalletPnL(address, tokenSymbol) {
     }
 
     const currentBalance = parseFloat(ethers.formatUnits(rawBalance, decimals))
-    const currentPrice = await getPriceFromMonorail(token.address, token.symbol)
+    const currentPrice = await getPriceFromZerion(checksummedAddress, token.address)
     const currentValue = currentBalance * currentPrice
     const pnl = currentValue - totalCost
 

@@ -2,33 +2,33 @@
 import fetch from 'node-fetch'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 
-const MONORAIL_HISTORICAL_URL = 'https://testnet-pathfinder-v2.monorail.xyz/v1/historical'
-
 async function fetch7DayPrices(tokenAddress) {
-    const url = new URL(MONORAIL_HISTORICAL_URL)
-    url.searchParams.set('token', tokenAddress)
-    url.searchParams.set('range', '7d')
-  
-    const response = await fetch(url.toString())
-    const text = await response.text()
-  
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch (parseErr) {
-      console.error('❌ Monorail response is not valid JSON:', text)
-      throw new Error('Invalid response format from Monorail.')
+  const DUMMY_WALLET = process.env.ZERION_DUMMY_WALLET || '0xd9F016e453dE48D877e3f199E8FA4aADca2E979C'
+  const url = new URL(`https://api.zerion.io/v1/wallets/${DUMMY_WALLET}/positions`)
+  url.searchParams.set('filter[asset]', tokenAddress)
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      'Authorization': `Bearer ${process.env.ZERION_API_KEY}`,
+      'X-Env': 'test'
     }
-  
-    if (!Array.isArray(data?.prices) || data.prices.length === 0) {
-      throw new Error('No price history data returned.')
-    }
-  
-    return data.prices.map((entry) => ({
-      timestamp: entry.timestamp,
-      price: parseFloat(entry.price),
-    }))
-  }  
+  })
+
+  const data = await res.json()
+  const sparkline = data?.data?.[0]?.attributes?.price?.sparkline
+
+  if (!Array.isArray(sparkline) || sparkline.length === 0) {
+    throw new Error('No sparkline (price history) data available.')
+  }
+
+  // Convert sparkline points into timestamped points (assuming 7d = 168 hrs)
+  const now = Date.now()
+  const hourlyInterval = 60 * 60 * 1000
+  return sparkline.map((price, i) => ({
+    timestamp: new Date(now - (sparkline.length - 1 - i) * hourlyInterval).toISOString(),
+    price
+  }))
+} 
 
 function analyzeSentiment(prices) {
   const change = prices[prices.length - 1].price - prices[0].price
