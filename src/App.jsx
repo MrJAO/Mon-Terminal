@@ -418,17 +418,23 @@ function App() {
       }    
 
     // ── Swap Quote ──
-  } else if (cmd === 'swap' && sub && rest[0] === 'to') {
+  } else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
     const fromSymbol = sub.toUpperCase()
-    const amount = rest[1]
-    const toSymbol = rest[2].toUpperCase()
+    const amount     = tokenArg
+    const toSymbol   = rest[1]?.toUpperCase()
 
     const fromInfo = TOKEN_LIST.find(t => t.symbol === fromSymbol)
     const toInfo   = TOKEN_LIST.find(t => t.symbol === toSymbol)
+    
+    // handle invalid symbols:
     if (!fromInfo || !toInfo) {
-      setTerminalLines(prev => [...prev.slice(0, -1), `❌ Unknown token: ${!fromInfo ? fromSymbol : toSymbol}`])
-      return
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        '❌ Usage: swap <FROM> <AMOUNT> to <TO> (unknown token)'
+      ])
+      return // bail out early
     }
+    
     const from = fromInfo.address
     const to   = toInfo.address
 
