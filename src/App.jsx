@@ -24,8 +24,8 @@ const renderNFTs = (nfts, sortBy) => {
   const processed = nfts
     .filter(nft => nft?.tokenId || nft?.id?.tokenId)
     .map(nft => {
-      let id = nft.tokenId || nft.id?.tokenId || '0x0'
-      try { id = parseInt(id, 16) } catch {}
+      const rawId = nft.tokenId ?? nft.id?.tokenId ?? null
+      const id = rawId ? parseInt(rawId, 16) : 'Unknown'
       return { ...nft, displayId: id }
     })
     .sort((a, b) => {
@@ -37,7 +37,7 @@ const renderNFTs = (nfts, sortBy) => {
   return (
     <div className="nft-container animate-fadeIn">
       {processed.map(nft => {
-        const name = nft.name || nft.metadata?.name || nft.title || 'Unknown'
+        const name = nft.name || nft.metadata?.name || nft.title || `NFT #${nft.displayId}` || 'Unknown'
         const imgUrl = nft.image?.cachedUrl || nft.image?.pngUrl || nft.image?.originalUrl || nft.media?.[0]?.gateway || ''
         return (
           <div className="nft-item pixel-glow" key={`${nft.contract?.address}-${nft.displayId}`}>

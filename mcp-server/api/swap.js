@@ -79,7 +79,6 @@ router.post('/quote', async (req, res) => {
   }
 })
 
-// ✅ Build/confirm endpoint fixed and wrapped correctly
 router.post('/confirm', async (req, res) => {
   const { from, to, amount, sender } = req.body || global._LAST_SWAP_QUOTE || {}
 
@@ -101,42 +100,34 @@ router.post('/confirm', async (req, res) => {
 
     console.log('🚀 Monorail build URL:', url.toString())
     const resp = await fetch(url.toString())
-    const text = (await resp.text()).trim()
-
     const contentType = resp.headers.get('content-type') || ''
+    const raw = await resp.text()
+    
     let txObj
+    try {
+      txObj = JSON.parse(raw)
+    } catch (err) {
+      return res.status(400).json({ success: false, error: `Non-JSON response: ${raw}` })
+    }
 
-    if (contentType.includes('application/json')) {
-      txObj = JSON.parse(text)
-      if (!resp.ok) {
-        return res.status(resp.status).json({
-          success: false,
-          error: txObj?.error || 'Monorail API error.'
-        })
-      }
-      if (!txObj.transaction?.rawTransaction) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing rawTransaction in Monorail JSON response.'
-        })
-      }
-      return res.json({ success: true, transaction: txObj.transaction })
-    } else {
-      if (!resp.ok) {
-        return res.status(resp.status).json({
-          success: false,
-          error: `Monorail API error: ${text}`
-        })
-      }
-      return res.json({
-        success: true,
-        transaction: { rawTransaction: text }
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        success: false,
+        error: txObj?.error || `Monorail error: ${raw}`
       })
     }
+
+    const rawTx = txObj.transaction?.rawTransaction || txObj.rawTransaction
+    if (!rawTx) {
+      return res.status(400).json({ success: false, error: 'Missing rawTransaction in Monorail JSON response.' })
+    }
+
+    return res.json({ success: true, transaction: { rawTransaction: rawTx } })
   } catch (err) {
     console.error('❌ Confirm error:', err)
     return res.status(500).json({ success: false, error: err.message })
   }
 })
+
 
 export default router

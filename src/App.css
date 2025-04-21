@@ -318,7 +318,6 @@ button:focus-visible {
 .crt-scan {
   position: relative;
   z-index: 0;
-  overflow: hidden;
 }
 
 .crt-scan::before {

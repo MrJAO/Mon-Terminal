@@ -208,7 +208,7 @@ pre {
     transform: translateY(-50%);
   }
 }
-.crt-scan > * {
+.crt-scan {
   position: relative;
   z-index: 2;
 }
