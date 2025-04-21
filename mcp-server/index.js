@@ -13,7 +13,7 @@ import pnlRoute from './api/pnl.js'
 import recordStatRoute from './api/record-stat.js'
 import achievementsAddressRoute from './api/achievements/address.js'
 import achievementsMintRoute from './api/achievements/mint.js'
-import swapRoute from './api/swap.js'
+import router from './api/swap.js'
 import tokenReportRoute from './api/token-report.js'
 import bestPriceRoute from './api/best-price.js'
 
@@ -43,7 +43,7 @@ app.use(express.json())
 app.use('/api/analyze', analyzeRoute)
 
 // Swap routes (quote & build) via Monorail
-app.use('/api/swap', swapRoute)
+app.use('/api/swap', router)
 console.log('✅ Swap routes mounted at /api/swap')
 
 // Other API routes
