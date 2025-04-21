@@ -24,33 +24,30 @@ const renderNFTs = (nfts, sortBy) => {
   return (
     <div className="nft-container">
       {nfts
-        .filter(nft => nft?.id?.tokenId) // ✅ skip malformed NFTs
+        .filter(nft => nft?.tokenId) // ✅ use Alchemy's tokenId format
         .map(nft => {
-          let id = nft.id.tokenId
+          let id = nft.tokenId
           try { id = parseInt(id, 16) } catch {}
           return { ...nft, displayId: id }
         })
         .sort((a, b) => {
-          if (sortBy === 'name') return (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
-          if (sortBy === 'id')   return a.displayId - b.displayId
+          if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '')
+          if (sortBy === 'id') return a.displayId - b.displayId
           return 0
         })
         .map(nft => {
-          const name   = nft.metadata?.name || nft.title || 'Unknown'
-          const imgUrl = nft.media?.[0]?.gateway || ''
+          const name = nft.name || 'Unknown'
+          const imgUrl = nft.image?.cachedUrl || nft.image?.pngUrl || nft.image?.originalUrl || ''
           return (
-            <div
-              className="nft-item"
-              key={`${nft.contract.address}-${nft.displayId}`}>
+            <div className="nft-item" key={`${nft.contract?.address}-${nft.displayId}`}>
               {imgUrl && <img src={imgUrl} alt={name} />}
               <div className="nft-name">{name}</div>
               <div className="nft-divider" />
               <div className="nft-id">ID: {nft.displayId}</div>
-              <div className="nft-contract">{nft.contract.address}</div>
+              <div className="nft-contract">{nft.contract?.address}</div>
             </div>
           )
-        })
-      }
+        })}
     </div>
   )
 }
