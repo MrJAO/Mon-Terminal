@@ -15,7 +15,7 @@ const ABI = JSON.parse(
 const router = express.Router()
 
 const CONTRACT_ADDRESS = process.env.ACHIEVEMENT_CONTRACT_ADDRESS
-const RPC_URL = process.env.MONAD_RPC_URL
+const RPC_URL = process.env.MON_RPC_URL
 
 const provider = new ethers.JsonRpcProvider(RPC_URL)
 const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider)

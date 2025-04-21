@@ -2,9 +2,9 @@
 import fetch from 'node-fetch'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 
-async function fetch7DayPrices(tokenAddress) {
-  const ALCHEMY_URL = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
+const ALCHEMY_URL = process.env.ALCHEMY_RPC_URL
 
+async function fetch7DayPrices(tokenAddress) {
   const body = {
     jsonrpc: '2.0',
     id: 1,
@@ -26,10 +26,10 @@ async function fetch7DayPrices(tokenAddress) {
   }
 
   const data = await res.json()
-  const price = parseFloat(data?.result?.price || 0)
+  const price = parseFloat(data?.result?.price?.usd || 0)
   if (!price) throw new Error('No price data available from Alchemy.')
 
-  // Simulate hourly price points over 7 days (168 points, all same price for now)
+  // Simulate 168 hourly price points over 7 days using the current price
   const now = Date.now()
   const hourlyInterval = 60 * 60 * 1000
 

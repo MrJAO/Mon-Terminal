@@ -14,14 +14,25 @@ const router = express.Router()
 router.use(cors())
 router.use(express.json())
 
-// ✅ Correct network setting for Monad Testnet
 const ALCHEMY_SETTINGS = {
   apiKey: process.env.ALCHEMY_API_KEY,
-  network: Network.MONAD_TESTNET // 🧠 Confirmed support
+  network: Network.MONAD_TESTNET // ✅ Ensure this is available in current SDK
 }
 
 const alchemy = new Alchemy(ALCHEMY_SETTINGS)
-const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL)
+const provider = new ethers.JsonRpcProvider(process.env.ALCHEMY_RPC_URL)
+
+// 🔁 Retry helper
+async function retry(fn, retries = 2, delay = 500) {
+  try {
+    return await fn()
+  } catch (err) {
+    if (retries <= 0) throw err
+    console.warn(`Retrying after failure: ${err.message}`)
+    await new Promise(r => setTimeout(r, delay))
+    return retry(fn, retries - 1, delay * 2)
+  }
+}
 
 router.post('/', async (req, res) => {
   const address = typeof req.body.address === 'string'
@@ -52,7 +63,7 @@ router.post('/', async (req, res) => {
 
       let block
       try {
-        block = await provider.getBlock(blockNumber, true)
+        block = await retry(() => provider.getBlock(blockNumber, true), 2)
       } catch (err) {
         console.warn(`⚠️ Block ${blockNumber} failed: ${err.message}`)
         continue
@@ -83,7 +94,7 @@ router.post('/', async (req, res) => {
     try {
       const nftResponse = await alchemy.nft.getNftsForOwner(address)
       const allNfts = nftResponse.ownedNfts || []
-      const verifiedContracts = ['0xabc123...', '0xdef456...'] // Customize or expand as needed
+      const verifiedContracts = ['0xabc123...', '0xdef456...']
       const verified = allNfts.filter(n =>
         verifiedContracts.includes(n.contract.address.toLowerCase())
       ).length

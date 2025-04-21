@@ -15,10 +15,10 @@ const ERC20_ABI = [
   'function decimals() view returns (uint8)'
 ]
 
-// Fetch token price using Alchemy's Prices API
+const ALCHEMY_RPC_URL = process.env.ALCHEMY_RPC_URL
+
 async function getPriceFromAlchemy(tokenAddress) {
   try {
-    const url = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
     const body = {
       jsonrpc: '2.0',
       id: 1,
@@ -26,7 +26,7 @@ async function getPriceFromAlchemy(tokenAddress) {
       params: [tokenAddress]
     }
 
-    const res = await fetch(url, {
+    const res = await fetch(ALCHEMY_RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -40,10 +40,8 @@ async function getPriceFromAlchemy(tokenAddress) {
   }
 }
 
-// Fetch recent token transfers using Alchemy's Transfers API
 async function getRecentTokenTransfers(address, contract) {
   try {
-    const url = `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`
     const body = {
       jsonrpc: '2.0',
       id: 1,
@@ -58,7 +56,7 @@ async function getRecentTokenTransfers(address, contract) {
       }]
     }
 
-    const res = await fetch(url, {
+    const res = await fetch(ALCHEMY_RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)

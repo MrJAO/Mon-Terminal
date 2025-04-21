@@ -15,10 +15,10 @@ const ABI = JSON.parse(fs.readFileSync(ABI_PATH, 'utf8'))
 const router = express.Router()
 
 const CONTRACT_ADDRESS = process.env.MON_TERMINAL_ADDRESS
-const RPC_URL = process.env.MONAD_RPC_URL
+const RPC_URL = process.env.MON_RPC_URL
 
 if (!CONTRACT_ADDRESS || !RPC_URL) {
-  console.warn('⚠️ Missing MON_TERMINAL_ADDRESS or MONAD_RPC_URL in env.')
+  console.warn('⚠️ Missing MON_TERMINAL_ADDRESS or MON_RPC_URL in env.')
 }
 
 // Initialize provider and contract
