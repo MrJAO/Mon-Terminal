@@ -1,52 +1,55 @@
 // vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 import rollupNodePolyFill from 'rollup-plugin-polyfill-node'
 import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
 import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill'
 
 export default defineConfig({
   define: {
-    // replace global with globalThis
     global: 'globalThis',
     'process.env': {}
   },
   resolve: {
     alias: {
-      // use the browser versions of these
+      // force Vite to use React’s actual ESM entrypoints
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime'),
+      'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime'),
+      // your existing polyfills
       process: 'process/browser',
-      buffer: 'buffer',
-      stream: 'stream-browserify'
+      buffer: 'buffer'
     }
   },
   optimizeDeps: {
+    // pre‑bundle React and Wagmi so hooks & ESM imports resolve correctly
+    include: [
+      'react',
+      'react/jsx-runtime',
+      'wagmi',
+      '@wagmi/core'
+    ],
     esbuildOptions: {
-      // shim process & Buffer in dev
       plugins: [
         NodeGlobalsPolyfillPlugin({ process: true, buffer: true }),
         NodeModulesPolyfillPlugin()
-      ],
-      define: {
-        global: 'globalThis'
-      }
+      ]
     }
   },
   build: {
+    commonjsOptions: {
+      // make sure Vite runs Wagmi’s CJS fallback through the CJS plugin
+      include: [/node_modules/]
+    },
     rollupOptions: {
       plugins: [
-        // polyfill Node core modules in the production bundle
         rollupNodePolyFill()
       ]
-    },
-    commonjsOptions: {
-      transformMixedEsModules: true
     }
   },
-  plugins: [
-    // also apply at dev time
-    rollupNodePolyFill(),
-    react()
-  ],
+  plugins: [react()],
   server: {
     host: 'localhost',
     port: 5173,
@@ -54,8 +57,8 @@ export default defineConfig({
       '/api': {
         target: 'https://mon-terminal.onrender.com',
         changeOrigin: true,
-        secure: false
-      }
-    }
-  }
+        secure: false,
+      },
+    },
+  },
 })
