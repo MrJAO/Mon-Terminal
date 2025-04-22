@@ -3,45 +3,30 @@ import TOKEN_LIST from '../../src/constants/tokenList.js'
 import { fetchMonorailPrice } from '../api/fetchMonorailPrice.js'
 
 const FALLBACK_PRICES = {
-  MON: 10,
-  USDC: 1,
-  USDT: 1,
-  DAK: 2,
-  YAKI: 0.013,
-  CHOG: 0.164,
-  WMON: 10,
-  WETH: 1500,
-  WBTC: 75000,
-  WSOL: 130,
-  BEAN: 2.103,
-  shMON: 10,
-  MAD: 0.098,
-  sMON: 10,
-  aprMON: 10,
-  gMON: 10
+  MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164,
+  WMON: 10, WETH: 1500, WBTC: 75000, WSOL: 130, BEAN: 2.103,
+  shMON: 10, MAD: 0.098, sMON: 10, aprMON: 10, gMON: 10
 }
 
 async function fetch7DayPrices(symbol) {
-  try {
-    const price = await fetchMonorailPrice(symbol)
-    const now = Date.now()
-    const hourlyInterval = 60 * 60 * 1000
+  const now = Date.now()
+  const hourlyInterval = 60 * 60 * 1000
+  const fallback = FALLBACK_PRICES[symbol.toUpperCase()] || 0
 
-    return Array.from({ length: 168 }, (_, i) => ({
-      timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
-      price
-    }))
-  } catch (err) {
-    console.warn(`[TokenReport Fallback] ${symbol}:`, err.message)
-    const fallback = FALLBACK_PRICES[symbol.toUpperCase()] || 0
-    const now = Date.now()
-    const hourlyInterval = 60 * 60 * 1000
+  // Fetch price with catch for errors
+  const priceRaw = await fetchMonorailPrice(symbol).catch(err => {
+    console.warn(`[TokenReport Price Error] ${symbol}:`, err.message)
+    return fallback
+  })
 
-    return Array.from({ length: 168 }, (_, i) => ({
-      timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
-      price: fallback
-    }))
-  }
+  // Validate price
+  const price = (typeof priceRaw === 'number' && !isNaN(priceRaw)) ? priceRaw : fallback
+
+  // Build 7-day hourly series
+  return Array.from({ length: 168 }, (_, i) => ({
+    timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
+    price
+  }))
 }
 
 function analyzeSentiment(prices) {
@@ -65,12 +50,7 @@ export async function getTokenReport(symbol) {
     const prices = await fetch7DayPrices(symbol)
     const { percentChange, sentiment } = analyzeSentiment(prices)
 
-    return {
-      symbol: token.symbol,
-      prices,
-      percentChange,
-      sentiment
-    }
+    return { symbol: token.symbol, prices, percentChange, sentiment }
   } catch (err) {
     return { error: err.message }
   }

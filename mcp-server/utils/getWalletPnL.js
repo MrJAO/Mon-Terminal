@@ -2,11 +2,11 @@
 import { ethers } from 'ethers'
 import { provider } from './provider.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { fetchMonorailPrice } from '../api/fetchMonorailPrice.js'
+import { getQuote } from '../api/quoteService.js'
 
 const DECIMALS_CACHE = {
-  MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18, 
-  WETH: 18, WBTC: 8, WSOL: 9, BEAN: 18, shMON: 18, MAD: 18, 
+  MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18,
+  WETH: 18, WBTC: 8, WSOL: 9, BEAN: 18, shMON: 18, MAD: 18,
   sMON: 18, aprMON: 18, gMON: 18
 }
 
@@ -14,6 +14,41 @@ const ERC20_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)'
 ]
+
+const FALLBACK_PRICES = {
+  MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164, WMON: 10,
+  WETH: 1500, WBTC: 75000, WSOL: 130, BEAN: 2.103, shMON: 10, MAD: 0.098,
+  sMON: 10, aprMON: 10, gMON: 10
+}
+
+const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
+const NULL_SENDER = '0x0000000000000000000000000000000000000000'
+
+async function fetchMonorailPrice(symbol) {
+  const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === symbol.toUpperCase())
+  if (!token) throw new Error(`Token ${symbol} not found`)
+
+  const from = token.symbol === 'MON'
+    ? TOKEN_LIST.find(t => t.symbol === 'WMON')?.address
+    : token.address
+
+  const decimals = DECIMALS_CACHE[token.symbol] || 18
+  const amount = BigInt(10 ** decimals).toString()
+
+  try {
+    const data = await getQuote({ from, to: USDC_ADDRESS, amount, sender: NULL_SENDER })
+    // Consolidate possible properties
+    const formatted = data?.output_formatted
+      ?? data?.quote?.output_formatted
+      ?? data?.output?.formatted
+    const price = parseFloat(formatted)
+    if (!isNaN(price)) return price
+    throw new Error(`Missing price field, got: ${formatted}`)
+  } catch (err) {
+    console.warn(`[Monorail Price Error] ${symbol}: ${err.message}`)
+    return FALLBACK_PRICES[symbol.toUpperCase()] ?? 0
+  }
+}
 
 async function getRecentTokenTransfers(address, contract) {
   try {

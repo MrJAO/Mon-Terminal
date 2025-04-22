@@ -1,4 +1,4 @@
-// utils/fetchMonorailPrice.js
+// api/fetchMonorailPrice.js
 import { getQuote } from './quoteService.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 
@@ -17,25 +17,28 @@ const DECIMALS_MAP = {
 const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
 const NULL_SENDER = '0x0000000000000000000000000000000000000000'
 
-// Fetch real-time price using Monorail API
 export async function fetchMonorailPrice(symbol) {
   const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === symbol.toUpperCase())
   if (!token) throw new Error(`Token ${symbol} not found`)
 
-  const from = token.symbol === 'MON'
-    ? TOKEN_LIST.find(t => t.symbol === 'WMON')?.address
-    : token.address
+  const actualSymbol = symbol.toUpperCase() === 'MON' ? 'WMON' : symbol.toUpperCase()
+  const fromToken = TOKEN_LIST.find(t => t.symbol.toUpperCase() === actualSymbol)
+  if (!fromToken?.address) throw new Error(`Unable to resolve address for ${actualSymbol}`)
 
-  const decimals = DECIMALS_MAP[token.symbol] || 18
+  const decimals = DECIMALS_MAP[actualSymbol] || 18
   const amount = BigInt(10 ** decimals).toString()
 
   try {
-    const quote = await getQuote({ from, to: USDC_ADDRESS, amount, sender: NULL_SENDER })
-    const parsed = parseFloat(quote?.quote?.output_formatted)
+    const quote = await getQuote({ from: fromToken.address, to: USDC_ADDRESS, amount, sender: NULL_SENDER })
+    // Try multiple paths for formatted output
+    const formatted = quote?.output_formatted
+      ?? quote?.quote?.output_formatted
+      ?? quote?.output?.formatted
+    const parsed = parseFloat(formatted)
     if (!isNaN(parsed)) return parsed
-    throw new Error('Missing or invalid output_formatted')
+    throw new Error(`Missing price field, got: ${formatted}`)
   } catch (err) {
     console.warn(`[Monorail Price Error] ${symbol}: ${err.message}`)
-    return FALLBACK_PRICES[symbol.toUpperCase()] ?? 0
+    return FALLBACK_PRICES[actualSymbol] ?? 0
   }
 }
