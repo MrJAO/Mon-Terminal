@@ -496,8 +496,8 @@ function App() {
       return // bail out early
     }
     
-    const from = fromInfo.address
-    const to   = toInfo.address
+    const from = fromSymbol;
+    const to   = toSymbol;
 
     setTerminalLines(prev => [...prev.slice(0, -1), `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`])
     try {

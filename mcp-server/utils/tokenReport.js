@@ -9,24 +9,23 @@ const FALLBACK_PRICES = {
 }
 
 async function fetch7DayPrices(symbol) {
-  const now = Date.now()
-  const hourlyInterval = 60 * 60 * 1000
-  const fallback = FALLBACK_PRICES[symbol.toUpperCase()] || 0
+  const now = Date.now();
+  const hourlyInterval = 60 * 60 * 1000;
+  const fallback = FALLBACK_PRICES[symbol.toUpperCase()] || 0;
 
-  // Fetch price with catch for errors
-  const priceRaw = await fetchMonorailPrice(symbol).catch(err => {
-    console.warn(`[TokenReport Price Error] ${symbol}:`, err.message)
-    return fallback
-  })
+  let price;
+  try {
+    price = await fetchMonorailPrice(symbol);
+    if (typeof price !== 'number' || isNaN(price)) throw new Error(`Invalid price: ${price}`);
+  } catch (err) {
+    console.warn(`[TokenReport Price Error] ${symbol}:`, err.message);
+    price = fallback;
+  }
 
-  // Validate price
-  const price = (typeof priceRaw === 'number' && !isNaN(priceRaw)) ? priceRaw : fallback
-
-  // Build 7-day hourly series
   return Array.from({ length: 168 }, (_, i) => ({
     timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
     price
-  }))
+  }));
 }
 
 function analyzeSentiment(prices) {

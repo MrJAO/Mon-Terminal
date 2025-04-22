@@ -12,19 +12,19 @@ const FALLBACK_PRICES = {
 }
 
 router.post('/', async (req, res) => {
-  const { symbol } = req.body
-  const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === symbol?.toUpperCase())
+  const { symbol } = req.body;
+  const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === symbol?.toUpperCase());
   if (!token) {
-    return res.status(400).json({ success: false, error: 'Invalid token symbol.' })
+    return res.status(400).json({ success: false, error: 'Invalid token symbol.' });
   }
+  const fallback = FALLBACK_PRICES[token.symbol] || 0;
 
-  const fallback = FALLBACK_PRICES[token.symbol] || 0
-
+  let price;
   try {
-    let price = await fetchMonorailPrice(token.symbol)
+    price = await fetchMonorailPrice(token.symbol);
     if (typeof price !== 'number' || isNaN(price)) {
-      console.warn(`[BestPrice Fallback] ${symbol}: invalid price ${price}`)
-      price = fallback
+      console.warn(`[BestPrice Fallback] ${symbol}: invalid price ${price}`);
+      price = fallback;
     }
 
     return res.json({
@@ -35,17 +35,18 @@ router.post('/', async (req, res) => {
       source: 'Monorail Pathfinder'
     })
   } catch (err) {
-    console.error(`❌ BestPrice error for ${symbol}:`, err)
-    // Return fallback response
-    return res.json({
-      success: true,
-      price: fallback.toFixed(4),
-      symbol: token.symbol,
-      quotedIn: 'USDC',
-      source: 'Fallback',
-      note: 'Using fallback price due to error'
-    })
+    console.error(`❌ BestPrice error for ${symbol}:`, err);
+    price = fallback;
   }
+
+  return res.json({
+    success: true,
+    price: price.toFixed(4),
+    symbol: token.symbol,
+    quotedIn: 'USDC',
+    source: 'Monorail Pathfinder',
+    note: price === fallback ? 'Using fallback price due to error' : undefined
+  })
 })
 
 export default router
