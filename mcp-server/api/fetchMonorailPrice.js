@@ -2,7 +2,7 @@
 import { getQuote } from './quoteService.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 import { ethers } from 'ethers'
-import { provider } from './provider.js'  // your JSON‐RPC provider
+import { provider } from '../utils/provider.js'  // your JSON‐RPC provider
 
 const FALLBACK_PRICES = {
   MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164,
