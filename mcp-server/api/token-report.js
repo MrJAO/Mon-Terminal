@@ -26,9 +26,10 @@ router.post('/', async (req, res) => {
       success: true,
       data: {
         ...result,
-        source: 'Monorail'
+        source: 'Monorail',
+        note: 'Thanks Monorail API team for powering the token reports 🧠✨'
       }
-    })
+    })    
   } catch (err) {
     console.error('❌ Token report error:', err)
     return res.status(500).json({ success: false, error: err.message })

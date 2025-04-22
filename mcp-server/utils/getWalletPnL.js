@@ -52,7 +52,15 @@ async function getPriceFromMonorail(tokenAddress) {
       })
     })
 
-    const data = await res.json()
+    // Catch non-JSON or error responses
+    const text = await res.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch (e) {
+      throw new Error(`Invalid JSON: ${text.slice(0, 100)}`)
+    }
+
     if (data.success && data.quote?.output_formatted) {
       const price = parseFloat(data.quote.output_formatted)
       PRICE_CACHE[tokenAddress] = price

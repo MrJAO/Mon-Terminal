@@ -28,16 +28,24 @@ async function getPriceFromMonorail(tokenAddress) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: tokenAddress,
-        to: '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea', // USDC address
+        to: '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea', // USDC
         amount: '1000000000000000000', // 1 token in wei
         sender: '0x0000000000000000000000000000000000000000'
       })
     })
 
-    const data = await res.json()
-    if (data.success && data.quote && data.quote.output_formatted) {
+    const text = await res.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch {
+      throw new Error(`Invalid JSON: ${text.slice(0, 80)}...`)
+    }
+
+    if (data.success && data.quote?.output_formatted) {
       return parseFloat(data.quote.output_formatted)
     }
+
     throw new Error(data.error || 'Invalid quote response')
   } catch (err) {
     console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)

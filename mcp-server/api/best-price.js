@@ -25,7 +25,16 @@ router.post('/', async (req, res) => {
       })
     })
 
-    const data = await quoteRes.json()
+    const text = await quoteRes.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch {
+      return res.status(502).json({
+        success: false,
+        error: `Invalid JSON response from Monorail: ${text.slice(0, 80)}...`,
+      })
+    }
 
     if (!data.success || !data.quote?.output_formatted) {
       return res.status(404).json({
