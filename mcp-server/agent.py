@@ -414,10 +414,16 @@ def main():
         try:
             resp = requests.post("https://mon-terminal.onrender.com/api/track/confirm", json=LAST_SWAP_QUOTE)
             data = resp.json()
-            if data.get("success") and data.get("transaction"):
+            if data.get("success") and "transaction" in data:
                 tx = data["transaction"]
-                print("🚀 Raw swap transaction object (pass this to your front‑end for signing):")
-                print(json.dumps(tx, indent=2))
+                if "rawTransaction" in tx:
+                    print("🚀 Raw transaction (legacy Monorail response):")
+                    print(tx["rawTransaction"])
+                else:
+                    print("🚀 Structured transaction object:")
+                    print(f"- To:    {tx['to']}")
+                    print(f"- Data:  {tx['data']}")
+                    print(f"- Value: {tx.get('value', '0x0')}")
             else:
                 print(f"❌ Swap confirm error: {data.get('error', 'Missing transaction data')}")
         except Exception as e:

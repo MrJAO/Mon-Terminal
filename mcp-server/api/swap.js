@@ -121,29 +121,32 @@ router.post('/confirm', async (req, res) => {
 
     console.log('🚀 Monorail build URL:', url.toString())
     const resp = await fetch(url.toString())
-    const contentType = resp.headers.get('content-type') || ''
     const raw = await resp.text()
 
-    let txObj
+    let json
     try {
-      txObj = JSON.parse(raw)
-    } catch (err) {
+      json = JSON.parse(raw)
+    } catch {
       return res.status(400).json({ success: false, error: `Non-JSON response: ${raw}` })
     }
 
     if (!resp.ok) {
       return res.status(resp.status).json({
         success: false,
-        error: txObj?.error || `Monorail error: ${raw}`
+        error: json?.error || `Monorail error: ${raw}`
       })
     }
 
-    const rawTx = txObj.transaction?.rawTransaction || txObj.rawTransaction
-    if (!rawTx) {
-      return res.status(400).json({ success: false, error: 'Missing rawTransaction in Monorail JSON response.' })
+    const tx = json.transaction
+    if (!tx || !tx.to || !tx.data) {
+      return res.status(400).json({ success: false, error: 'Missing transaction fields in Monorail JSON response.' })
     }
 
-    return res.json({ success: true, transaction: { rawTransaction: rawTx } })
+    return res.json({ success: true, transaction: {
+      to: tx.to,
+      data: tx.data,
+      value: tx.value || '0x0'
+    }})
   } catch (err) {
     console.error('❌ Confirm error:', err)
     return res.status(500).json({ success: false, error: err.message })

@@ -4,6 +4,7 @@ import { Typewriter } from 'react-simple-typewriter'
 import TOKEN_LIST from './constants/tokenList'
 import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
 import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
+import { useWalletClient } from 'wagmi'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
@@ -66,6 +67,7 @@ function App() {
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { writeContractAsync } = useWriteContract()
+  const { data: walletClient } = useWalletClient()
 
   const [hasTyped, setHasTyped] = useState(false)
   const [terminalLines, setTerminalLines] = useState([])
@@ -501,7 +503,6 @@ function App() {
       setTerminalLines(prev => [...prev.slice(0, -1), '❌ Swap quote failed.'])
     }
 
-  // ── Swap Confirm ──
   } else if (cmd === 'confirm') {
     if (!lastSwapQuote) {
       setTerminalLines(prev => [...prev.slice(0, -1), '❌ No swap quote available.'])
@@ -516,8 +517,12 @@ function App() {
       const data = await res.json()
       if (data.success) {
         const txObj = data.transaction
-        const walletClient = await getWalletClient()
-        const txHash = await walletClient.sendRawTransaction({ serializedTransaction: txObj.rawTransaction })
+        if (!walletClient) throw new Error('Wallet not connected')
+        const txHash = await walletClient.sendTransaction({
+          to: txObj.to,
+          data: txObj.data,
+          value: txObj.value || '0x0'
+        })
         setTerminalLines(prev => [...prev.slice(0, -1), `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`])
       } else {
         setTerminalLines(prev => [...prev.slice(0, -1), `❌ ${data.error}`])
