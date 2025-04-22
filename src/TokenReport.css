@@ -47,4 +47,16 @@
     50%  { opacity: 1;    }
     100% { opacity: 0.93; }
   }
+
+  .monorail-credit {
+    text-shadow: 0 0 3px #ff00ff, 0 0 6px #8800ff;
+    animation: monorail-flicker 2.5s infinite alternate;
+  }
+  
+  @keyframes monorail-flicker {
+    0%   { opacity: 0.85; transform: translateY(0px); }
+    50%  { opacity: 1; transform: translateY(-1px); }
+    100% { opacity: 0.8; transform: translateY(0px); }
+  }
+  
   

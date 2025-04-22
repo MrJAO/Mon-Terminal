@@ -352,3 +352,28 @@ button:focus-visible {
   position: relative;
   z-index: 2;
 }
+
+/* Monorail Tribute Glitch Text */
+.monorail-tribute {
+  font-size: 10px;
+  font-style: italic;
+  color: #c084fc;
+  font-family: var(--pixel-font);
+  margin-top: 0.25rem;
+  animation: glitch-flicker 1.5s infinite;
+}
+
+.monorail-tribute span {
+  color: #d8b4fe;
+  font-weight: bold;
+}
+
+@keyframes glitch-flicker {
+  0% { opacity: 1; }
+  45% { opacity: 0.9; }
+  50% { opacity: 0.4; }
+  55% { opacity: 0.9; }
+  60% { opacity: 0.6; }
+  70% { opacity: 1; }
+  100% { opacity: 0.8; }
+}

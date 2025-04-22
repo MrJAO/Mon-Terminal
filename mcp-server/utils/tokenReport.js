@@ -1,12 +1,6 @@
 // utils/tokenReport.js
-import { Alchemy, Network } from 'alchemy-sdk'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-
-// — Mainnet SDK client for USD prices —
-const alchemyPrice = new Alchemy({
-  apiKey: process.env.ALCHEMY_API_KEY,
-  network: Network.ETH_MAINNET
-})
+import fetch from 'node-fetch'
 
 const FALLBACK_PRICES = {
   MON: 10,
@@ -27,18 +21,26 @@ const FALLBACK_PRICES = {
   gMON: 10
 }
 
-/**
- * Fetches a single USD price via Alchemy Mainnet SDK,
- * falling back to your hardcoded map if necessary.
- */
-async function getPriceFromAlchemy(tokenAddress) {
+async function getPriceFromMonorail(tokenAddress) {
   try {
-    const metadata = await alchemyPrice.core.getTokenMetadata(tokenAddress)
-    const price = metadata?.price?.usd
-    if (price && !isNaN(price)) return price
-    throw new Error('no USD price in metadata')
+    const res = await fetch('https://testnet-pathfinder-v2.monorail.xyz/v1/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: tokenAddress,
+        to: '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea', // USDC address
+        amount: '1000000000000000000', // 1 token in wei
+        sender: '0x0000000000000000000000000000000000000000'
+      })
+    })
+
+    const data = await res.json()
+    if (data.success && data.quote && data.quote.output_formatted) {
+      return parseFloat(data.quote.output_formatted)
+    }
+    throw new Error(data.error || 'Invalid quote response')
   } catch (err) {
-    console.warn(`[Alchemy Price Error] ${tokenAddress}:`, err.message)
+    console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)
     const token = TOKEN_LIST.find(
       t => t.address.toLowerCase() === tokenAddress.toLowerCase()
     )
@@ -50,10 +52,7 @@ async function getPriceFromAlchemy(tokenAddress) {
 }
 
 async function fetch7DayPrices(tokenAddress) {
-  // Get a single “current” price (Mainnet or fallback)
-  const price = await getPriceFromAlchemy(tokenAddress)
-  
-  // Simulate 168 hourly points over the past 7 days
+  const price = await getPriceFromMonorail(tokenAddress)
   const now = Date.now()
   const hourlyInterval = 60 * 60 * 1000
 
@@ -65,7 +64,7 @@ async function fetch7DayPrices(tokenAddress) {
 
 function analyzeSentiment(prices) {
   const first = prices[0].price
-  const last  = prices[prices.length - 1].price
+  const last = prices[prices.length - 1].price
   const change = last - first
   const percentChange = (change / first) * 100
 

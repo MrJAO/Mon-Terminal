@@ -3,12 +3,6 @@ import { ethers } from 'ethers'
 import { provider } from './provider.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 import fetch from 'node-fetch'
-import { Alchemy, Network } from 'alchemy-sdk'
-
-const alchemyPrice = new Alchemy({
-  apiKey: process.env.ALCHEMY_API_KEY,
-  network: Network.ETH_MAINNET
-})
 
 const DECIMALS_CACHE = {
   MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18, 
@@ -20,8 +14,6 @@ const ERC20_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)'
 ]
-
-const ALCHEMY_TESTNET_RPC_URL = process.env.ALCHEMY_TESTNET_RPC_URL
 
 const FALLBACK_PRICES = {
   MON: 10,
@@ -42,19 +34,37 @@ const FALLBACK_PRICES = {
   gMON: 10
 }
 
-async function getPriceFromAlchemy(tokenAddress) {
+// 🔁 In-memory price cache
+const PRICE_CACHE = {}
+
+async function getPriceFromMonorail(tokenAddress) {
+  if (PRICE_CACHE[tokenAddress]) return PRICE_CACHE[tokenAddress]
+
   try {
-    const metadata = await alchemyPrice.core.getTokenMetadata(tokenAddress)
-    const price = metadata?.price?.usd
-    if (price && !isNaN(price)) return price
-    throw new Error('no USD price in metadata')
+    const res = await fetch('https://testnet-pathfinder-v2.monorail.xyz/v1/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: tokenAddress,
+        to: '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea', // USDC
+        amount: '1000000000000000000', // 1 token in wei
+        sender: '0x0000000000000000000000000000000000000000'
+      })
+    })
+
+    const data = await res.json()
+    if (data.success && data.quote?.output_formatted) {
+      const price = parseFloat(data.quote.output_formatted)
+      PRICE_CACHE[tokenAddress] = price
+      return price
+    }
+
+    throw new Error(data.error || 'Invalid quote response')
   } catch (err) {
-    console.warn(`[Alchemy Price Error] ${tokenAddress}:`, err.message)
+    console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)
     const t = TOKEN_LIST.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase())
     const sym = t?.symbol?.toUpperCase()
-    return sym && FALLBACK_PRICES[sym] != null
-      ? FALLBACK_PRICES[sym]
-      : 0
+    return sym && FALLBACK_PRICES[sym] != null ? FALLBACK_PRICES[sym] : 0
   }
 }
 
@@ -69,19 +79,24 @@ async function getRecentTokenTransfers(address, contract) {
         toAddress: address,
         contractAddresses: [contract],
         category: ['erc20'],
-        maxCount: '0x5',
         withMetadata: true
       }]
     }
 
-    const res = await fetch(ALCHEMY_TESTNET_RPC_URL, {
+    const res = await fetch(process.env.ALCHEMY_TESTNET_RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     })
 
     const data = await res.json()
-    return data?.result?.transfers || []
+    const transfers = data?.result?.transfers || []
+
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
+    return transfers.filter(tx => {
+      const ts = new Date(tx.metadata.blockTimestamp).getTime()
+      return ts > threeDaysAgo
+    })
   } catch (err) {
     console.warn(`[Alchemy Transfers Error] ${contract}:`, err.message)
     return []
@@ -98,14 +113,16 @@ export async function getWalletPnL(address, tokenSymbol) {
   try {
     const checksummedAddress = ethers.getAddress(address)
     const decimals = DECIMALS_CACHE[token.symbol] || 18
-    const transfers = token.address === 'native' ? [] : await getRecentTokenTransfers(checksummedAddress, token.address)
+    const transfers = token.address === 'native'
+      ? []
+      : await getRecentTokenTransfers(checksummedAddress, token.address)
 
     let totalCost = 0
     let totalAmount = 0
 
     for (const tx of transfers) {
       const amount = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
-      const price = await getPriceFromAlchemy(token.address)
+      const price = await getPriceFromMonorail(token.address)
       if (!price) continue
 
       totalAmount += amount
@@ -123,7 +140,7 @@ export async function getWalletPnL(address, tokenSymbol) {
     }
 
     const currentBalance = parseFloat(ethers.formatUnits(rawBalance, decimals))
-    const currentPrice = await getPriceFromAlchemy(token.address)
+    const currentPrice = await getPriceFromMonorail(token.address)
     const currentValue = currentBalance * currentPrice
     const pnl = currentValue - totalCost
 

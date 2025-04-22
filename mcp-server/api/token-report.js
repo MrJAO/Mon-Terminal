@@ -18,12 +18,17 @@ router.post('/', async (req, res) => {
     const result = await getTokenReport(symbol)
 
     if (result.error) {
-      // Not found or fallback failed
       return res.status(404).json({ success: false, error: result.error })
     }
 
-    // Return the token report under "data" to match client expectations
-    return res.json({ success: true, data: result })
+    // ✅ Add Monorail source tag to response
+    return res.json({
+      success: true,
+      data: {
+        ...result,
+        source: 'Monorail'
+      }
+    })
   } catch (err) {
     console.error('❌ Token report error:', err)
     return res.status(500).json({ success: false, error: err.message })

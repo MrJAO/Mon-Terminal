@@ -221,7 +221,7 @@ function App() {
         const data = await res.json()
         if (data.success && Array.isArray(data.data) && data.data[0] && !data.data[0].error) {
           const entry = data.data[0]
-          const output = [
+          const outputLines = [
             `PNL Report for ${entry.symbol}`,
             `- Average Buy Price: $${entry.averageBuyPrice.toFixed(4)}`,
             `- Current Price:     $${entry.currentPrice.toFixed(4)}`,
@@ -229,7 +229,13 @@ function App() {
             `- Current Value:     $${entry.currentValue.toFixed(2)}`,
             `- Total Cost:        $${entry.totalCost.toFixed(2)}`,
             `- PnL:               $${entry.pnl.toFixed(2)}`
-          ].join('\n')
+          ]
+          
+          const sourceLine = (
+            <p className="monorail-tribute">
+              💡 Powered by <span>Monorail API</span>
+            </p>
+          )                   
 
           setCurrentPnL(entry.pnl)
           setPnlChartData([
@@ -240,8 +246,8 @@ function App() {
 
           setTerminalLines(prev => {
             const lines = prev.slice(0, -1)
-            return [...lines, output]
-          })
+            return [...lines, outputLines.join('\n'), sourceLine]
+          })          
         } else {
           const errMsg = data.data?.[0]?.error || data.error || 'Unable to fetch PnL data.'
           setTerminalLines(prev => [...prev.slice(0, -1), `❌ ${errMsg}`])
@@ -411,8 +417,11 @@ function App() {
               <p>📊 <strong>Token Report for {symbol}</strong></p>
               <p>- 7d Price Change: <span>{r.percentChange}%</span></p>
               <p>- Sentiment: <span className={r.sentiment.toLowerCase()}>{r.sentiment}</span></p>
+              <p className="text-[10px] mt-2 font-mono italic text-purple-300 monorail-credit">
+                💡 Powered by <span className="text-purple-100 font-bold">Monorail API</span>
+              </p>
             </div>
-          ]
+          ]         
         })
       } else {
         setTerminalLines(prev => [...prev.slice(0, -1), `❌ ${data.error || 'Unknown error'}`])
@@ -440,7 +449,19 @@ function App() {
           setTerminalLines(prev => {
             const lines = [...prev]
             lines.pop()
-            return [...lines, `💱 Best Price for ${token}: $${data.price} (via ${data.source})`]
+            return [
+              ...lines,
+              <div key={`best-price-${token}`} className="token-report-box">
+                <p>💱 <strong>Best Price for {token}</strong></p>
+                <p>- Price: <span>${data.price}</span></p>
+                <p>- Source: <span>{data.source}</span></p>
+                {data.note && (
+                  <p className="text-[10px] mt-2 font-mono italic text-purple-300 monorail-credit">
+                    💡 {data.note}
+                  </p>
+                )}
+              </div>
+            ]            
           })
         } else {
           setTerminalLines(prev => {
