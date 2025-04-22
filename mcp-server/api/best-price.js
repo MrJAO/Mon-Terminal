@@ -22,7 +22,9 @@ router.post('/', async (req, res) => {
       sender: '0x0000000000000000000000000000000000000000'
     })
 
-    const price = parseFloat(data?.quote?.output_formatted)
+    const priceStr = data?.output_formatted || data?.quote?.output_formatted
+    const price = parseFloat(priceStr)
+
     if (!price || isNaN(price)) {
       return res.status(404).json({
         success: false,

@@ -24,28 +24,29 @@ const FALLBACK_PRICES = {
 const PRICE_CACHE = {}
 const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
 
-async function getPriceFromMonorail(tokenAddress) {
+async function fetchMonorailPrice(token) {
+  const tokenAddress = token.address
   if (PRICE_CACHE[tokenAddress]) return PRICE_CACHE[tokenAddress]
 
   try {
+    const decimals = DECIMALS_CACHE[token.symbol] || 18
+    const amount = decimals === 6 ? '1000000' : '1000000000000000000'
     const data = await getQuote({
       from: tokenAddress,
       to: USDC_ADDRESS,
-      amount: '1000000000000000000',
+      amount,
       sender: '0x0000000000000000000000000000000000000000'
     })
 
-    const price = parseFloat(data.quote.output_formatted)
+    const price = parseFloat(data.output_formatted)
     if (!isNaN(price)) {
       PRICE_CACHE[tokenAddress] = price
       return price
     }
-    throw new Error('Invalid quote format')
+    throw new Error('Invalid price format')
   } catch (err) {
-    console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)
-    const t = TOKEN_LIST.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase())
-    const sym = t?.symbol?.toUpperCase()
-    return sym && FALLBACK_PRICES[sym] != null ? FALLBACK_PRICES[sym] : 0
+    console.warn(`[Monorail Price Error] ${token.symbol}:`, err.message)
+    return FALLBACK_PRICES[token.symbol.toUpperCase()] || 0
   }
 }
 
@@ -103,7 +104,7 @@ export async function getWalletPnL(address, tokenSymbol) {
 
     for (const tx of transfers) {
       const amount = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
-      const price = await getPriceFromMonorail(token.address)
+      const price = await fetchMonorailPrice(token)
       if (!price) continue
 
       totalAmount += amount
@@ -121,7 +122,7 @@ export async function getWalletPnL(address, tokenSymbol) {
     }
 
     const currentBalance = parseFloat(ethers.formatUnits(rawBalance, decimals))
-    const currentPrice = await getPriceFromMonorail(token.address)
+    const currentPrice = await fetchMonorailPrice(token)
     const currentValue = currentBalance * currentPrice
     const pnl = currentValue - totalCost
 

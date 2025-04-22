@@ -22,34 +22,42 @@ const FALLBACK_PRICES = {
 }
 
 const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
+const DECIMALS_CACHE = {
+  MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18,
+  WETH: 18, WBTC: 8, WSOL: 9, BEAN: 18, shMON: 18, MAD: 18,
+  sMON: 18, aprMON: 18, gMON: 18
+}
 
-async function getPriceFromMonorail(tokenAddress) {
+const PRICE_CACHE = {}
+
+async function fetchMonorailPrice(token) {
+  if (PRICE_CACHE[token.address]) return PRICE_CACHE[token.address]
+
   try {
+    const decimals = DECIMALS_CACHE[token.symbol] || 18
+    const amount = decimals === 6 ? '1000000' : '1000000000000000000'
     const data = await getQuote({
-      from: tokenAddress,
+      from: token.address,
       to: USDC_ADDRESS,
-      amount: '1000000000000000000',
+      amount,
       sender: '0x0000000000000000000000000000000000000000'
     })
 
-    const price = parseFloat(data.quote.output_formatted)
-    if (!isNaN(price)) return price
+    const price = parseFloat(data.output_formatted)
+    if (!isNaN(price)) {
+      PRICE_CACHE[token.address] = price
+      return price
+    }
 
-    throw new Error('Invalid quote format')
+    throw new Error('Invalid price format')
   } catch (err) {
-    console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)
-    const token = TOKEN_LIST.find(
-      t => t.address.toLowerCase() === tokenAddress.toLowerCase()
-    )
-    const sym = token?.symbol?.toUpperCase()
-    return sym && FALLBACK_PRICES[sym] != null
-      ? FALLBACK_PRICES[sym]
-      : (() => { throw new Error('No price data available') })()
+    console.warn(`[Monorail Price Error] ${token.symbol}:`, err.message)
+    return FALLBACK_PRICES[token.symbol.toUpperCase()] || 0
   }
 }
 
-async function fetch7DayPrices(tokenAddress) {
-  const price = await getPriceFromMonorail(tokenAddress)
+async function fetch7DayPrices(token) {
+  const price = await fetchMonorailPrice(token)
   const now = Date.now()
   const hourlyInterval = 60 * 60 * 1000
 
@@ -77,7 +85,7 @@ export async function getTokenReport(symbol) {
   if (!token) return { error: `Token ${symbol} not found.` }
 
   try {
-    const prices = await fetch7DayPrices(token.address)
+    const prices = await fetch7DayPrices(token)
     const { percentChange, sentiment } = analyzeSentiment(prices)
 
     return {
