@@ -45,13 +45,18 @@ export async function buildSwap({ from, to, amount, sender }) {
     throw new Error(json?.error || `Build failed: ${raw}`)
   }
 
-  const rawTx = json.transaction?.rawTransaction || json.rawTransaction
-  if (!rawTx) {
-    console.warn('⚠️ Monorail returned no rawTransaction. Full payload below:')
-    console.warn(JSON.stringify(json, null, 2))
-    await new Promise(res => setTimeout(res, 100)) // flush logs before throwing
-    throw new Error(`Missing rawTransaction in response. Full payload: ${JSON.stringify(json)}`)
-  }  
-
-  return rawTx
+  const tx = json.transaction
+  if (!tx || !tx.to || !tx.data) {
+    throw new Error(`Missing transaction fields in response. Full payload: ${JSON.stringify(json)}`)
+  }
+  
+  // ✅ Log extracted transaction
+  console.log('🧾 Final parsed transaction object:', tx)
+  
+  return {
+    to: tx.to,
+    data: tx.data,
+    value: tx.value || '0x0'  // default to 0 if not provided
+  }
+  
 }
