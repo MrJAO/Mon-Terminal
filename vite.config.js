@@ -1,43 +1,50 @@
 // vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import rollupNodePolyFill from 'rollup-plugin-polyfill-node'
+import rollupNodePolyFill from 'rollup-plugin-node-polyfills'
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
+import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill'
 
 export default defineConfig({
   define: {
-    // make `global` available
-    global: 'window',
-    // shim `process.env` if any libs reference it
-    'process.env': {}
+    // Make `global` and `process.env` available
+    global: 'globalThis',
+    'process.env': {},
   },
   resolve: {
     alias: {
-      // core node shims
+      // These aliases point imports of Node core modules at our polyfills
       process: 'process/browser',
       buffer: 'buffer',
       util: 'rollup-plugin-node-polyfills/polyfills/util',
       stream: 'rollup-plugin-node-polyfills/polyfills/stream',
       events: 'rollup-plugin-node-polyfills/polyfills/events',
       path: 'rollup-plugin-node-polyfills/polyfills/path',
-      crypto: 'rollup-plugin-node-polyfills/polyfills/crypto'
-    }
+      crypto: 'rollup-plugin-node-polyfills/polyfills/crypto',
+    },
   },
   optimizeDeps: {
-    // force Vite to pre-bundle these
-    include: ['process', 'buffer']
+    esbuildOptions: {
+      // Inject the esbuild polyfills at dev‑time
+      define: { global: 'globalThis' },
+      plugins: [
+        NodeGlobalsPolyfillPlugin({ process: true, buffer: true }),
+        NodeModulesPolyfillPlugin(),
+      ],
+    },
   },
   build: {
     rollupOptions: {
       plugins: [
-        // polyfill any other core built‑ins during production build
-        rollupNodePolyFill()
-      ]
-    }
+        // And again for the production build
+        rollupNodePolyFill(),
+      ],
+    },
   },
   plugins: [
-    // polyfill at dev‑time too
+    // Rollup polyfills need to run *before* React plugin
     rollupNodePolyFill(),
-    react()
+    react(),
   ],
   server: {
     host: 'localhost',
