@@ -6,7 +6,7 @@ const {
 } = process.env
 
 const TOKEN_ADDRESSES = {
-  MON:  'native',
+  MON:  '0x0000000000000000000000000000000000000000',
   USDC: '0xf817257fed379853cde0fa4f97ab987181b1e5ea',
   USDT: '0x88b8e2161dedc77ef4ab7585569d2415a1c1055d',
   DAK:  '0x0f0bdebf0f83cd1ee3974779bcb7315f9808c714',
@@ -31,7 +31,7 @@ export async function resolveTokenAddress(symbol) {
 
   if (symbol.toLowerCase() === 'mon') {
     console.log(`✅ Resolved ${symbol} as native MON`)
-    return '0x0000000000000000000000000000000000000000'
+    return 'native'
   }
 
   try {

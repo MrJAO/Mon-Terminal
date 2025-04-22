@@ -26,7 +26,7 @@ export async function fetchMonorailPrice(symbol) {
   if (!fromToken?.address) throw new Error(`Unable to resolve address for ${actualSymbol}`)
 
   const decimals = DECIMALS_MAP[actualSymbol] || 18
-  const amount = BigInt(10 ** decimals).toString()
+  const amount = (BigInt(10) ** BigInt(decimals)).toString();
 
   try {
     const quote = await getQuote({ from: fromToken.address, to: USDC_ADDRESS, amount, sender: NULL_SENDER })

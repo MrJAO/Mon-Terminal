@@ -32,16 +32,17 @@ async function fetchMonorailPrice(symbol) {
     ? TOKEN_LIST.find(t => t.symbol === 'WMON')?.address
     : token.address;
   const decimals = DECIMALS_CACHE[token.symbol] || 18;
-  const amount = BigInt(10 ** decimals).toString();
+  const amount = (BigInt(10) ** BigInt(decimals)).toString();
 
   try {
     const data = await getQuote({ from, to: USDC_ADDRESS, amount, sender: NULL_SENDER });
+    // Try every possible formatted field
     const formatted = data?.output_formatted
       ?? data?.quote?.output_formatted
       ?? data?.output?.formatted;
     const price = parseFloat(formatted);
     if (!isNaN(price)) return price;
-    throw new Error(`Missing price field, got: ${formatted}`);
+    throw new Error(`Missing or invalid price field: ${formatted}`);
   } catch (err) {
     console.warn(`[Monorail Price Error] ${symbol}: ${err.message}`);
     return FALLBACK_PRICES[symbol.toUpperCase()] ?? 0;
