@@ -2,7 +2,7 @@
 import { ethers } from 'ethers'
 import { provider } from './provider.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { getQuote } from '../api/quoteService.js'
+import { fetchMonorailPrice } from './fetchMonorailPrice.js'
 
 const DECIMALS_CACHE = {
   MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18, 
@@ -14,41 +14,6 @@ const ERC20_ABI = [
   'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)'
 ]
-
-const FALLBACK_PRICES = {
-  MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164, WMON: 10,
-  WETH: 1500, WBTC: 75000, WSOL: 130, BEAN: 2.103, shMON: 10, MAD: 0.098,
-  sMON: 10, aprMON: 10, gMON: 10
-}
-
-const PRICE_CACHE = {}
-const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
-
-async function fetchMonorailPrice(token) {
-  const tokenAddress = token.address
-  if (PRICE_CACHE[tokenAddress]) return PRICE_CACHE[tokenAddress]
-
-  try {
-    const decimals = DECIMALS_CACHE[token.symbol] || 18
-    const amount = decimals === 6 ? '1000000' : '1000000000000000000'
-    const data = await getQuote({
-      from: tokenAddress,
-      to: USDC_ADDRESS,
-      amount,
-      sender: '0x0000000000000000000000000000000000000000'
-    })
-
-    const price = parseFloat(data.output_formatted)
-    if (!isNaN(price)) {
-      PRICE_CACHE[tokenAddress] = price
-      return price
-    }
-    throw new Error('Invalid price format')
-  } catch (err) {
-    console.warn(`[Monorail Price Error] ${token.symbol}:`, err.message)
-    return FALLBACK_PRICES[token.symbol.toUpperCase()] || 0
-  }
-}
 
 async function getRecentTokenTransfers(address, contract) {
   try {
@@ -104,7 +69,7 @@ export async function getWalletPnL(address, tokenSymbol) {
 
     for (const tx of transfers) {
       const amount = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
-      const price = await fetchMonorailPrice(token)
+      const price = await fetchMonorailPrice(token.symbol)
       if (!price) continue
 
       totalAmount += amount
@@ -122,7 +87,7 @@ export async function getWalletPnL(address, tokenSymbol) {
     }
 
     const currentBalance = parseFloat(ethers.formatUnits(rawBalance, decimals))
-    const currentPrice = await fetchMonorailPrice(token)
+    const currentPrice = await fetchMonorailPrice(token.symbol)
     const currentValue = currentBalance * currentPrice
     const pnl = currentValue - totalCost
 

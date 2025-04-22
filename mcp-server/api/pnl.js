@@ -31,8 +31,12 @@ router.post('/', async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: pnlData,
-    })
+      data: {
+        ...pnlData[0],
+        symbol: token,
+        source: 'monorail'
+      }
+    })    
   } catch (error) {
     console.error(`❌ Error in /api/pnl for ${req.body?.token}:`, error.stack || error)
     return res.status(500).json({

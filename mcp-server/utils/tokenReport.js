@@ -1,6 +1,6 @@
 // utils/tokenReport.js
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { getQuote } from '../api/quoteService.js'
+import { fetchMonorailPrice } from './fetchMonorailPrice.js'
 
 const FALLBACK_PRICES = {
   MON: 10,
@@ -21,50 +21,27 @@ const FALLBACK_PRICES = {
   gMON: 10
 }
 
-const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
-const DECIMALS_CACHE = {
-  MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18,
-  WETH: 18, WBTC: 8, WSOL: 9, BEAN: 18, shMON: 18, MAD: 18,
-  sMON: 18, aprMON: 18, gMON: 18
-}
-
-const PRICE_CACHE = {}
-
-async function fetchMonorailPrice(token) {
-  if (PRICE_CACHE[token.address]) return PRICE_CACHE[token.address]
-
+async function fetch7DayPrices(symbol) {
   try {
-    const decimals = DECIMALS_CACHE[token.symbol] || 18
-    const amount = decimals === 6 ? '1000000' : '1000000000000000000'
-    const data = await getQuote({
-      from: token.address,
-      to: USDC_ADDRESS,
-      amount,
-      sender: '0x0000000000000000000000000000000000000000'
-    })
+    const price = await fetchMonorailPrice(symbol)
+    const now = Date.now()
+    const hourlyInterval = 60 * 60 * 1000
 
-    const price = parseFloat(data.output_formatted)
-    if (!isNaN(price)) {
-      PRICE_CACHE[token.address] = price
-      return price
-    }
-
-    throw new Error('Invalid price format')
+    return Array.from({ length: 168 }, (_, i) => ({
+      timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
+      price
+    }))
   } catch (err) {
-    console.warn(`[Monorail Price Error] ${token.symbol}:`, err.message)
-    return FALLBACK_PRICES[token.symbol.toUpperCase()] || 0
+    console.warn(`[TokenReport Fallback] ${symbol}:`, err.message)
+    const fallback = FALLBACK_PRICES[symbol.toUpperCase()] || 0
+    const now = Date.now()
+    const hourlyInterval = 60 * 60 * 1000
+
+    return Array.from({ length: 168 }, (_, i) => ({
+      timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
+      price: fallback
+    }))
   }
-}
-
-async function fetch7DayPrices(token) {
-  const price = await fetchMonorailPrice(token)
-  const now = Date.now()
-  const hourlyInterval = 60 * 60 * 1000
-
-  return Array.from({ length: 168 }, (_, i) => ({
-    timestamp: new Date(now - (167 - i) * hourlyInterval).toISOString(),
-    price
-  }))
 }
 
 function analyzeSentiment(prices) {
@@ -85,7 +62,7 @@ export async function getTokenReport(symbol) {
   if (!token) return { error: `Token ${symbol} not found.` }
 
   try {
-    const prices = await fetch7DayPrices(token)
+    const prices = await fetch7DayPrices(symbol)
     const { percentChange, sentiment } = analyzeSentiment(prices)
 
     return {

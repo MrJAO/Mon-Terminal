@@ -1,10 +1,9 @@
 // api/best-price.js
 import express from 'express'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { getQuote } from './quoteService.js'
+import { fetchMonorailPrice } from '../utils/fetchMonorailPrice.js'
 
 const router = express.Router()
-const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
 
 router.post('/', async (req, res) => {
   const { symbol } = req.body
@@ -15,16 +14,7 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const data = await getQuote({
-      from: token.address,
-      to: USDC_ADDRESS,
-      amount: '1000000000000000000',
-      sender: '0x0000000000000000000000000000000000000000'
-    })
-
-    const priceStr = data?.output_formatted || data?.quote?.output_formatted
-    const price = parseFloat(priceStr)
-
+    const price = await fetchMonorailPrice(token.symbol)
     if (!price || isNaN(price)) {
       return res.status(404).json({
         success: false,
