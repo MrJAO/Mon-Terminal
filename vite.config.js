@@ -2,34 +2,49 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import rollupNodePolyFill from 'rollup-plugin-polyfill-node'
+import rollupNodePolyFill from 'rollup-plugin-node-polyfills'
 import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
 import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill'
 
 export default defineConfig({
   define: {
+    // make globalThis available as global
     global: 'globalThis',
+    // (optional) shim process.env
     'process.env': {}
   },
   resolve: {
     alias: {
-      // force Vite to use React’s actual ESM entrypoints
+      // force Vite to use your real React package
       react: path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime'),
       'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime'),
-      // your existing polyfills
+      // Node.js core modules → browser polyfills
       process: 'process/browser',
-      buffer: 'buffer'
+      buffer: 'buffer',
+      stream: 'stream-browserify',
+      crypto: 'crypto-browserify',
+      os: 'os-browserify',
+      path: 'path-browserify',
+      assert: 'assert'
     }
   },
   optimizeDeps: {
-    // pre‑bundle React and Wagmi so hooks & ESM imports resolve correctly
     include: [
+      // pre-bundle these so their imports resolve correctly
       'react',
       'react/jsx-runtime',
       'wagmi',
-      '@wagmi/core'
+      '@wagmi/core',
+      'ethers',
+      'buffer',
+      'process/browser',
+      'stream-browserify',
+      'crypto-browserify',
+      'os-browserify',
+      'path-browserify',
+      'assert'
     ],
     esbuildOptions: {
       plugins: [
@@ -40,13 +55,12 @@ export default defineConfig({
   },
   build: {
     commonjsOptions: {
-      // make sure Vite runs Wagmi’s CJS fallback through the CJS plugin
+      // make sure any CJS wagmi/ethers code gets transformed
       include: [/node_modules/]
     },
     rollupOptions: {
-      plugins: [
-        rollupNodePolyFill()
-      ]
+      // extra polyfills at bundle time
+      plugins: [rollupNodePolyFill()]
     }
   },
   plugins: [react()],
