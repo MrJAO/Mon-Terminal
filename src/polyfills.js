@@ -1,7 +1,8 @@
 // src/polyfills.js
-import process from 'process/browser.js'
-import { Buffer } from 'buffer'
+import process from 'process'    // ← import by package name
+import { Buffer } from 'buffer' // ← same here
 
+// attach them to window
 if (typeof window.global === 'undefined') {
   window.global = window
 }

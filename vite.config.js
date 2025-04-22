@@ -7,24 +7,23 @@ export default defineConfig({
   define: {
     // make `global` available
     global: 'window',
-    // (optional) shim process.env
+    // shim process.env if you need it
     'process.env': {}
   },
   resolve: {
     alias: {
-      // point `process` imports at the browser entry
-      process: 'process/browser.js',
-      // point `buffer` imports at its main entry
-      buffer: 'buffer/index.js'
+      // polyfill Node globals
+      process: 'process/browser',  // ← point at the browser entry
+      buffer: 'buffer'             // ← point at the main entry
     }
   },
   optimizeDeps: {
-    // force Vite to pre-bundle these so our aliases apply
-    include: ['process/browser', 'buffer']
+    // ensure these get pre-bundled so our aliases apply
+    include: ['process', 'buffer']
   },
   build: {
     rollupOptions: {
-      // polyfill other Node.js core modules as needed
+      // polyfill other Node.js core modules
       plugins: [rollupNodePolyFill()]
     }
   },
