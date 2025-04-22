@@ -12,7 +12,7 @@ import './NFT.css';
 import { getWalletClient } from '@wagmi/core'
 import { ethers } from 'ethers'
 import erc20Abi from './abi/erc20.json'
-import { resolveTokenAddress } from './api/resolveToken'
+import { resolveTokenAddress } from '../mcp-server/api/resolveToken.js'
 import {
   BarChart,
   Bar,
