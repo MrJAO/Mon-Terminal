@@ -1,6 +1,8 @@
 // api/fetchMonorailPrice.js
 import { getQuote } from './quoteService.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
+import { ethers } from 'ethers'
+import { provider } from './provider.js'  // your JSON‐RPC provider
 
 const FALLBACK_PRICES = {
   MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164,
@@ -17,30 +19,41 @@ const DECIMALS_MAP = {
 const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
 const NULL_SENDER   = '0x0000000000000000000000000000000000000000'
 
+const ERC20_DECIMALS_ABI = ['function decimals() view returns (uint8)']
+
 export async function fetchMonorailPrice(symbol) {
-  // Find the token entry (case‑insensitive)
-  const tokenEntry = TOKEN_LIST.find(
-    t => t.symbol.toUpperCase() === symbol.toUpperCase()
-  )
+  // 1) Resolve the token entry (case‐insensitive)
+  const symUpper = symbol.toUpperCase()
+  const tokenEntry = TOKEN_LIST.find(t => t.symbol.toUpperCase() === symUpper)
   if (!tokenEntry) {
     throw new Error(`Token ${symbol} not found in TOKEN_LIST`)
   }
 
-  // For MON, we actually quote WMON → USDC; otherwise the token itself
-  const actualSymbol = symbol.toUpperCase() === 'MON' ? 'WMON' : symbol.toUpperCase()
-  const fromEntry = TOKEN_LIST.find(
-    t => t.symbol.toUpperCase() === actualSymbol
-  )
+  // 2) For MON use WMON as the "from" asset, otherwise the token itself
+  const actualSymbol = symUpper === 'MON' ? 'WMON' : symUpper
+  const fromEntry = TOKEN_LIST.find(t => t.symbol.toUpperCase() === actualSymbol)
   if (!fromEntry?.address) {
     throw new Error(`Unable to resolve address for ${actualSymbol}`)
   }
 
-  // Build a 1‑unit amount (10^decimals)
-  const decimals = DECIMALS_MAP[actualSymbol] ?? 18
+  // 3) Figure out decimals: try on‐chain, fall back to DECIMALS_MAP, then to 18
+  let decimals
+  if (DECIMALS_MAP[actualSymbol] != null) {
+    decimals = DECIMALS_MAP[actualSymbol]
+  } else {
+    try {
+      const contract = new ethers.Contract(fromEntry.address, ERC20_DECIMALS_ABI, provider)
+      decimals = await contract.decimals()
+    } catch {
+      decimals = 18
+    }
+  }
+
+  // 4) Build a 1‑unit amount in raw integer form
   const amount = (BigInt(10) ** BigInt(decimals)).toString()
 
   try {
-    // Ask Monorail for the quote
+    // 5) Query Monorail
     const data = await getQuote({
       from:   fromEntry.address,
       to:     USDC_ADDRESS,
@@ -48,7 +61,7 @@ export async function fetchMonorailPrice(symbol) {
       sender: NULL_SENDER
     })
 
-    // Try the various output formats
+    // 6) Normalize across Monorail’s response shapes
     const formatted = data?.output_formatted
       ?? data?.quote?.output_formatted
       ?? data?.output?.formatted
@@ -61,7 +74,6 @@ export async function fetchMonorailPrice(symbol) {
     }
   } catch (err) {
     console.warn(`[Monorail Price Error] ${symbol}: ${err.message}`)
-    // Fall back to your hardcoded map
     return FALLBACK_PRICES[actualSymbol] ?? 0
   }
 }

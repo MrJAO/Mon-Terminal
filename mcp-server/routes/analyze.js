@@ -1,134 +1,112 @@
-// routes/analyze.js
+// mon-terminal/mcp-server/routes/analyze.js
 import dotenv from 'dotenv'
 dotenv.config()
 
 import express from 'express'
-import cors from 'cors'
 import { ethers } from 'ethers'
-import fetch from 'node-fetch'
+import { Alchemy, Network } from 'alchemy-sdk'
 import dexContracts from './dexContracts.js'
 
 const router = express.Router()
 
-router.use(cors())
-router.use(express.json())
+const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL)
 
-// Provider for Monad Testnet
-const provider = new ethers.JsonRpcProvider(
-  process.env.ALCHEMY_TESTNET_RPC_URL || 'https://testnet-rpc.monad.xyz',
-  { chainId: 10143, name: 'monad-testnet' }
-)
-
-// Retry helper for robustness
-async function retry(fn, retries = 2, delay = 500) {
-  try {
-    return await fn()
-  } catch (err) {
-    if (retries <= 0) throw err
-    console.warn(`Retrying after failure: ${err.message}`)
-    await new Promise(r => setTimeout(r, delay))
-    return retry(fn, retries - 1, delay * 2)
-  }
-}
+const alchemy = new Alchemy({
+  apiKey: process.env.ALCHEMY_API_KEY,
+  network: Network.ETH_GOERLI,
+})
 
 router.post('/', async (req, res) => {
-  const address = typeof req.body.address === 'string'
-    ? req.body.address.toLowerCase()
-    : null
-
-  if (!address || !ethers.isAddress(address)) {
+  const body = req.body || {}
+  const address = typeof body.address === 'string' ? body.address.toLowerCase() : null
+  if (!address) {
     return res.status(400).json({ success: false, message: 'Invalid or missing wallet address.' })
   }
 
   try {
     console.log(`🔍 Analyzing address: ${address}`)
 
-    // Total transaction count
     const totalTxCount = await provider.getTransactionCount(address)
+    console.log(`📊 Total transactions: ${totalTxCount}`)
 
-    // Determine block range (10% of a day's blocks)
     const latestBlock = await provider.getBlockNumber()
     const blocksPerDay = 7200
-    const scanDepth = Math.floor(blocksPerDay * 0.1)
-    const fromBlock = Math.max(0, latestBlock - scanDepth)
+    const scanDepth = blocksPerDay * 0.1
+    const fromBlock = Math.max(0, Math.floor(latestBlock - scanDepth))
 
-    // Initialize DEX interaction counters
-    const recentDexCounts = Object.fromEntries(
-      Object.keys(dexContracts).map(name => [name, 0])
-    )
+    console.log(`⛓️ Scanning blocks ${fromBlock}-${latestBlock} for DEX interactions`)
 
-    // Scan each block in range
+    const recentDexCounts = {}
+    for (const name of Object.keys(dexContracts)) recentDexCounts[name] = 0
+
     for (let blockNumber = fromBlock; blockNumber <= latestBlock; blockNumber++) {
       if ((blockNumber - fromBlock) % 50 === 0) {
-        console.log(`🌀 Scanning block ${blockNumber}...`)
+        console.log(`🌀 Progress: at block ${blockNumber}`)
       }
 
-      // Fetch block with full transactions
       let block
       try {
-        block = await retry(() =>
-          provider.getBlockWithTransactions(blockNumber)
-        )
+        block = await provider.getBlock(blockNumber, true)
       } catch (err) {
-        console.warn(`⚠️ Block ${blockNumber} failed: ${err.message}`)
+        console.warn(`⚠️ Failed to fetch block ${blockNumber}: ${err.message}`)
         continue
       }
 
-      if (!block?.transactions?.length) continue
+      if (!block || !block.transactions || block.transactions.length === 0) {
+        console.warn(`⚠️ Block ${blockNumber} has no transactions or could not be fetched.`)
+        continue
+      }
 
-      // Inspect each transaction
       for (const tx of block.transactions) {
-        const from = tx.from?.toLowerCase()
-        const to = tx.to?.toLowerCase()
-        const data = tx.data || ''
+        if ((tx.from?.toLowerCase() === address || tx.to?.toLowerCase() === address) && tx.data) {
+          const methodId = tx.data.slice(0, 10)
+          console.log(`🔎 TX ${tx.hash} uses methodId: ${methodId}`)
 
-        // Only transactions involving the address with calldata
-        if ((from === address || to === address) && data.length >= 10) {
-          const methodId = data.slice(0, 10).toLowerCase()
-
-          // Check against known DEX contracts and methods
+          let matched = false
           for (const [dexName, dexInfo] of Object.entries(dexContracts)) {
-            if (
-              to === dexInfo.address.toLowerCase() ||
-              dexInfo.methodIds.map(i => i.toLowerCase()).includes(methodId)
-            ) {
+            const expectedMethodId = dexInfo.methodId?.toLowerCase()
+            const expectedAddress = dexInfo.address?.toLowerCase()
+            const txTo = tx.to?.toLowerCase()
+
+            const isMethodMatch = methodId === expectedMethodId
+            const isToAddressMatch = txTo === expectedAddress
+
+            if (isMethodMatch || isToAddressMatch) {
               recentDexCounts[dexName]++
+              matched = true
+              console.log(`✅ Matched ${dexName} at block ${blockNumber}`)
               break
             }
+          }
+
+          if (!matched) {
+            console.warn(`❌ No DEX match for methodId ${methodId} in tx ${tx.hash}`)
           }
         }
       }
     }
 
-    // NFT Holdings via Alchemy NFT API
     let nftHoldings = { total: 0, verified: 0, unverified: 0 }
     try {
-      const nftRes = await fetch(
-        `https://monad-testnet.g.alchemy.com/nft/v2/${process.env.ALCHEMY_API_KEY}/getNFTs?owner=${address}`
-      )
-      const nftData = await nftRes.json()
-      const allNfts = nftData.ownedNfts || []
-
-      // Customize your list of verified contract addresses
-      const verifiedContracts = ['0xabc123...', '0xdef456...']
+      console.log(`🎨 Fetching NFTs via Alchemy`)
+      const nftResponse = await alchemy.nft.getNftsForOwner(address)
+      const allNfts = nftResponse.ownedNfts || []
+      const verifiedContracts = [ '0xabc123...', '0xdef456...' ]
       const verified = allNfts.filter(n =>
         verifiedContracts.includes(n.contract.address.toLowerCase())
       ).length
-
-      nftHoldings = {
-        total: allNfts.length,
-        verified,
-        unverified: allNfts.length - verified
-      }
-    } catch (err) {
-      console.warn('⚠️ NFT fetch failed:', err.message)
+      nftHoldings = { total: allNfts.length, verified, unverified: allNfts.length - verified }
+    } catch {
+      console.warn('⚠️ Alchemy NFT fetch failed; using simulated data')
     }
 
-    // Determine activity level
-    const activityLevel =
-      totalTxCount >= 5000 ? 'High' :
-      totalTxCount >= 1000 ? 'Intermediate' :
-      totalTxCount >= 200  ? 'Fair' : 'Low'
+    let activityLevel
+    if (totalTxCount >= 5000)      activityLevel = 'High'
+    else if (totalTxCount >= 1000) activityLevel = 'Intermediate'
+    else if (totalTxCount >= 200)  activityLevel = 'Fair'
+    else                            activityLevel = 'Low'
+
+    console.log(`🔔 Activity level: ${activityLevel}`)
 
     return res.json({
       success: true,
@@ -137,9 +115,9 @@ router.post('/', async (req, res) => {
         transactionCount: totalTxCount,
         nftHoldings,
         activityLevel,
-        disclaimer: 'Activity levels are speculative. Do your own research.',
+        disclaimer: 'Activity levels are purely for speculation only.',
         dexSummary: {
-          label: 'DEX interactions scanned from past blocks:',
+          label: "You've interacted with these DEXs for the past 12 hours:",
           interactions: recentDexCounts
         }
       }

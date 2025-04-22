@@ -101,73 +101,56 @@ router.post('/quote', async (req, res) => {
 })
 
 router.post('/confirm', async (req, res) => {
-  const ZERO = '0x0000000000000000000000000000000000000000';
+  const { from, to, amount, sender } = req.body || global._LAST_SWAP_QUOTE || {}
 
-  // Retrieve from, to, amount, sender
-  let { from, to, amount, sender } = req.body || global._LAST_SWAP_QUOTE || {};
   if (!from || !to || !amount || !sender) {
-    return res.status(400).json({ success: false, error: 'Missing from, to, amount, or sender.' });
+    return res.status(400).json({ success: false, error: 'Missing from, to, amount, or sender.' })
   }
 
-  // If either side is the zero‐address, try both 'native' and ZERO as candidates
-  const fromCandidates = from === ZERO ? ['native', ZERO] : [from];
-  const toCandidates   = to   === ZERO ? ['native', ZERO] : [to];
+  try {
+    const url = new URL(`${MONORAIL_API_URL}/v1/quote`)
+    url.searchParams.set('from', from)
+    url.searchParams.set('to', to)
+    url.searchParams.set('amount', amount)
+    url.searchParams.set('sender', sender)
+    url.searchParams.set('slippage', SLIPPAGE)
+    url.searchParams.set('deadline', DEADLINE)
+    url.searchParams.set('max_hops', MAX_HOPS)
+    url.searchParams.set('source', 'mon-terminal')
+    url.searchParams.set('build', 'true')
 
-  let lastError = null;
+    console.log('🚀 Monorail build URL:', url.toString())
+    const resp = await fetch(url.toString())
+    const raw = await resp.text()
 
-  // Attempt every combination until one succeeds
-  for (const f of fromCandidates) {
-    for (const t of toCandidates) {
-      try {
-        const url = new URL(`${MONORAIL_API_URL}/v1/quote`);
-        url.searchParams.set('from', f);
-        url.searchParams.set('to', t);
-        url.searchParams.set('amount', amount);
-        url.searchParams.set('sender', sender);
-        url.searchParams.set('slippage', SLIPPAGE);
-        url.searchParams.set('deadline', DEADLINE);
-        url.searchParams.set('max_hops', MAX_HOPS);
-        url.searchParams.set('source', 'mon-terminal');
-        url.searchParams.set('build', 'true');
-
-        console.log('🚀 Monorail build URL:', url.toString());
-
-        const resp = await fetch(url.toString());
-        const raw  = await resp.text();
-        let json;
-        try {
-          json = JSON.parse(raw);
-        } catch (e) {
-          lastError = `Non-JSON response: ${raw}`;
-          continue;
-        }
-
-        if (!resp.ok) {
-          lastError = json?.error || `Monorail error: ${raw}`;
-          continue;
-        }
-
-        const tx = json.transaction;
-        if (!tx || !tx.to || !tx.data) {
-          lastError = 'Missing transaction fields in Monorail JSON response.';
-          continue;
-        }
-
-        // Success: return immediately
-        return res.json({ success: true, transaction: {
-          to: tx.to,
-          data: tx.data,
-          value: tx.value || '0x0'
-        }});
-      } catch (err) {
-        console.error('❌ Confirm attempt error with', { from: f, to: t }, err);
-        lastError = err.message;
-      }
+    let json
+    try {
+      json = JSON.parse(raw)
+    } catch {
+      return res.status(400).json({ success: false, error: `Non-JSON response: ${raw}` })
     }
-  }
 
-  // All attempts failed
-  return res.status(400).json({ success: false, error: lastError });
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        success: false,
+        error: json?.error || `Monorail error: ${raw}`
+      })
+    }
+
+    const tx = json.transaction
+    if (!tx || !tx.to || !tx.data) {
+      return res.status(400).json({ success: false, error: 'Missing transaction fields in Monorail JSON response.' })
+    }
+
+    return res.json({ success: true, transaction: {
+      to: tx.to,
+      data: tx.data,
+      value: tx.value || '0x0'
+    }})
+  } catch (err) {
+    console.error('❌ Confirm error:', err)
+    return res.status(500).json({ success: false, error: err.message })
+  }
 })
 
 export default router
