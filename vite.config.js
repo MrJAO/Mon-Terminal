@@ -1,37 +1,34 @@
 // vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import polyfillNode from 'rollup-plugin-polyfill-node'
+import rollupNodePolyFill from 'rollup-plugin-polyfill-node'
 
 export default defineConfig({
   define: {
-    // so `global` & `process.env` aren’t undefined
-    global: 'globalThis',
-    'process.env': {},
+    // make `global` available
+    global: 'window',
+    // (optional) shim process.env
+    'process.env': {}
   },
   resolve: {
     alias: {
-      // point any Node core imports at browser polyfills
-      process: 'process/browser',
-      buffer: 'buffer',
-    },
+      // point `process` imports at the browser entry
+      process: 'process/browser.js',
+      // point `buffer` imports at its main entry
+      buffer: 'buffer/index.js'
+    }
   },
   optimizeDeps: {
-    // prebundle these
-    include: ['process', 'buffer'],
+    // force Vite to pre-bundle these so our aliases apply
+    include: ['process/browser', 'buffer']
   },
   build: {
     rollupOptions: {
-      plugins: [
-        // this brings in all the Node built‑in polyfills on build
-        polyfillNode()
-      ],
-    },
+      // polyfill other Node.js core modules as needed
+      plugins: [rollupNodePolyFill()]
+    }
   },
-  plugins: [
-    // Vite plugin chain: do React last so the polyfills are in place first
-    react(),
-  ],
+  plugins: [react()],
   server: {
     host: 'localhost',
     port: 5173,

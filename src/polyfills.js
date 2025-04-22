@@ -1,16 +1,13 @@
 // src/polyfills.js
-import process from 'process/browser'
+import process from 'process/browser.js'
 import { Buffer } from 'buffer'
 
-// ensure globalThis exists everywhere
-if (typeof globalThis.global === 'undefined') {
-  globalThis.global = globalThis
+if (typeof window.global === 'undefined') {
+  window.global = window
 }
-
-// polyfill process and Buffer
-if (typeof globalThis.process === 'undefined') {
-  globalThis.process = process
+if (typeof window.process === 'undefined') {
+  window.process = process
 }
-if (typeof globalThis.Buffer === 'undefined') {
-  globalThis.Buffer = Buffer
+if (typeof window.Buffer === 'undefined') {
+  window.Buffer = Buffer
 }
