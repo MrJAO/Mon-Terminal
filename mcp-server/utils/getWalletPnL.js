@@ -2,7 +2,7 @@
 import { ethers } from 'ethers'
 import { provider } from './provider.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { fetchMonorailPrice } from './api/fetchMonorailPrice.js'
+import { fetchMonorailPrice } from '../api/fetchMonorailPrice.js'
 
 const DECIMALS_CACHE = {
   MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18, 

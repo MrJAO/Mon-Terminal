@@ -1,6 +1,6 @@
 // utils/tokenReport.js
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { fetchMonorailPrice } from './api/fetchMonorailPrice.js'
+import { fetchMonorailPrice } from '../api/fetchMonorailPrice.js'
 
 const FALLBACK_PRICES = {
   MON: 10,
