@@ -10,6 +10,9 @@ import './Achievements.css'
 import './TokenReport.css'
 import './NFT.css';
 import { getWalletClient } from '@wagmi/core'
+import { ethers } from 'ethers'
+import erc20Abi from './abi/erc20.json'
+import { resolveTokenAddress } from './api/resolveToken'
 import {
   BarChart,
   Bar,
@@ -81,6 +84,7 @@ function App() {
   const [isCooldownActive, setIsCooldownActive] = useState(false)
   const [cooldownTimestamp, setCooldownTimestamp] = useState(null)
   const [nftResults, setNftResults] = useState(null)
+  const [pendingSend, setPendingSend] = useState(null)
 
   const achievementNames = {
     green10: "Profit Initiate",
@@ -484,150 +488,149 @@ function App() {
           return [...lines, '❌ Failed to fetch best price.']
         })
       }
-    
-    // ── Swap Quote ──
-    } else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
-      const fromSymbol = sub.toUpperCase()
-      const amount = tokenArg
-      const toSymbol = rest[1]?.toUpperCase()
-    
-      const fromInfo = TOKEN_LIST.find(t => t.symbol === fromSymbol)
-      const toInfo = TOKEN_LIST.find(t => t.symbol === toSymbol)
-    
-      if (!fromInfo || !toInfo) {
-        setTerminalLines(prev => [
-          ...prev.slice(0, -1),
-          '❌ Usage: swap <FROM> <AMOUNT> to <TO> (unknown token)'
-        ])
-        return
-      }
-    
-      const from = fromInfo.address
-      const to = toInfo.address
-    
-      setTerminalLines(prev => [
-        ...prev.slice(0, -1),
-        `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`
-      ])
-    
-      try {
-        const res = await fetch(`${baseApiUrl}/swap/quote`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from, to, amount, sender: address })
-        })
-    
-        const data = await res.json()
-    
-        if (data.success) {
-          const q = data.quote
-          setLastSwapQuote({ from, to, amount, sender: address })
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            'Quote:',
-            `- You send:       ${q.input_formatted} ${fromSymbol}`,
-            `- You’ll receive: ${q.output_formatted} ${toSymbol}`,
-            `- Min receive:    ${q.min_output_formatted} ${toSymbol}`,
-            `- Price impact:   ${(q.compound_impact * 100).toFixed(2)}%`,
-            'Type: confirm to execute swap'
-          ])
-        } else {
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            `❌ ${data.error}`
-          ])
-        }
-      } catch {
-        setTerminalLines(prev => [
-          ...prev.slice(0, -1),
-          '❌ Swap quote failed.'
-        ])
-      }   
 
-    } else if (cmd === 'confirm') {
-      if (!lastSwapQuote) {
+    } else if (cmd === 'send' && tokenArg && rest[0] === 'to') {
+        const amount = sub
+        const token  = tokenArg.toUpperCase()
+        const to     = rest[1]
+    
+        setPendingSend({ amount, token, to })
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
-          '❌ No swap quote available.'
+          `> Ready to send ${amount} ${token} → ${to}`,
+          `> Type: confirm transfer`
         ])
-        return
       }
     
-      setTerminalLines(prev => [
-        ...prev.slice(0, -1),
-        '> Executing swap...'
-      ])
-    
-      try {
-        const res = await fetch(`${baseApiUrl}/swap/confirm`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(lastSwapQuote)
-        })
-    
-        const data = await res.json()
-    
-        if (data.success) {
-          const txObj = data.transaction
-          if (!walletClient) throw new Error('Wallet not connected')
-    
-          const txHash = await walletClient.sendTransaction({
-            to: txObj.to,
-            data: txObj.data,
-            value: txObj.value || '0x0'
-          })
-    
+      // ── Confirm Transfer ──
+      else if (cmd === 'confirm' && sub === 'transfer') {
+        if (!pendingSend) {
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
-            `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
+            '❌ No pending transfer. First use: send <amt> <token> to <address>'
           ])
-        } else {
+          return
+        }
+    
+        const { amount, token, to } = pendingSend
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          '> Executing transfer…'
+        ])
+    
+        try {
+          let txHash
+          if (token === 'MON') {
+            const value = ethers.utils.parseEther(amount)
+            txHash = await walletClient.sendTransaction({ to, value })
+          } else {
+            const tokenAddress = await resolveTokenAddress(token)
+            if (!tokenAddress) throw new Error(`Unknown token ${token}`)
+            const decimals = await new ethers.Contract(tokenAddress, erc20Abi, walletClient).decimals()
+            const amt = ethers.utils.parseUnits(amount, decimals)
+            txHash = await writeContractAsync({
+              abi: erc20Abi,
+              address: tokenAddress,
+              functionName: 'transfer',
+              args: [to, amt]
+            })
+          }
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
-            `❌ ${data.error}`
+            `> ✅ Sent ${amount} ${token}. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
+          ])
+        } catch (err) {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            `❌ Transfer failed: ${err.message}`
+          ])
+        } finally {
+          setPendingSend(null)
+        }
+      }
+    
+      // ── Swap Quote ──
+      else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
+        // … your swap quote logic …
+      }
+    
+      // ── Confirm Swap ──
+      else if (cmd === 'confirm') {
+        if (!lastSwapQuote) {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            '❌ No swap quote available.'
+          ])
+          return
+        }
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          '> Executing swap...'
+        ])
+        try {
+          const res = await fetch(`${baseApiUrl}/swap/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(lastSwapQuote)
+          })
+          const data = await res.json()
+          if (data.success) {
+            const txObj = data.transaction
+            if (!walletClient) throw new Error('Wallet not connected')
+            const txHash = await walletClient.sendTransaction({
+              to: txObj.to,
+              data: txObj.data,
+              value: txObj.value || '0x0'
+            })
+            setTerminalLines(prev => [
+              ...prev.slice(0, -1),
+              `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
+            ])
+          } else {
+            setTerminalLines(prev => [
+              ...prev.slice(0, -1),
+              `❌ ${data.error}`
+            ])
+          }
+        } catch (err) {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            `❌ Confirm failed: ${err.message}`
           ])
         }
-      } catch (err) {
-        setTerminalLines(prev => [
-          ...prev.slice(0, -1),
-          `❌ Confirm failed: ${err.message}`
-        ])
       }
     
-    } else if (cmd === 'show' && sub === 'my' && tokenArg === 'nfts') {
-      const sortFlag = rest.find(r => r.startsWith('--sort='))
-      const sortBy = sortFlag?.split('=')[1] || null
-    
-      setTerminalLines(['> Fetching your NFTs…']) // ✅ reset terminal cleanly
-    
-      try {
-        const res = await fetch(`${baseApiUrl}/checkNFT`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner: address, command: 'my nfts', type: 'all' })
-        })
-    
-        const { nfts, error } = await res.json()
-        if (error) throw new Error(error)
-    
-        if (!nfts.length) {
+      // ── Show NFTs ──
+      else if (cmd === 'show' && sub === 'my' && tokenArg === 'nfts') {
+        const sortFlag = rest.find(r => r.startsWith('--sort='))
+        const sortBy   = sortFlag?.split('=')[1] || null
+        setTerminalLines(['> Fetching your NFTs…'])
+        try {
+          const res = await fetch(`${baseApiUrl}/checkNFT`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ owner: address, command: 'my nfts', type: 'all' })
+          })
+          const { nfts, error } = await res.json()
+          if (error) throw new Error(error)
+          if (!nfts.length) {
+            setTerminalLines(prev => [
+              ...prev.slice(0, -1),
+              '❌ No NFTs found in your wallet.'
+            ])
+            setNftResults(null)
+          } else {
+            setTerminalLines(prev => [...prev.slice(0, -1)])
+            setNftResults(renderNFTs(nfts, sortBy))
+          }
+        } catch (e) {
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
-            '❌ No NFTs found in your wallet.'
+            `❌ Unable to fetch NFTs: ${e.message}`
           ])
           setNftResults(null)
-        } else {
-          setTerminalLines(prev => [...prev.slice(0, -1)]) // remove "thinking"
-          setNftResults(renderNFTs(nfts, sortBy))          // ✅ display results
-        }
-      } catch (e) {
-        setTerminalLines(prev => [
-          ...prev.slice(0, -1),
-          `❌ Unable to fetch NFTs: ${e.message}`
-        ])
-        setNftResults(null)
-      }
-    
+        }        
+
       // ── Fallback Command ──
     } else {
       try {

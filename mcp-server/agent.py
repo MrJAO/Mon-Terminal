@@ -7,6 +7,7 @@ WALLET_ADDRESS = "0xd9F016e453dE48D877e3f199E8FA4aADca2E979C"  # Replace dynamic
 _COOLDOWN_FILE = "cooldowns.json"
 _COOLDOWN_SECONDS = 24 * 60 * 60
 LAST_SWAP_QUOTE = {}
+PENDING_SEND = {}
 
 # ─── Token symbol to contract address map ───
 TOKEN_ADDRESSES = {
@@ -354,11 +355,43 @@ def main():
         token = args[3] if len(args) > 3 else "?"
         print(simulate_best_price(token))
 
-    elif command == "send" and len(args) > 3 and args[2] == "to":
-        print(simulate_send_token(args[1], args[3]))
-
-    elif command == "token" and len(args) > 2 and args[1] == "report":
+    # ── Token Report ──
+    elif command == "token" and len(args) > 2 and args[1].lower() == "report":
         print(simulate_token_report(args[2]))
+        return
+
+    # ── Send / Transfer ──
+    elif command == "send" and len(args) > 3 and args[2].lower() == "to":
+        # Usage: send <amount> <token> to <address>
+        amount  = args[1]
+        token   = args[2].upper()
+        to_addr = args[3]
+
+        global PENDING_SEND
+        PENDING_SEND = { "amount": amount, "token": token, "to": to_addr }
+
+        print(f"> Ready to send {amount} {token} → {to_addr}")
+        print("> Type: confirm transfer")
+        return
+
+    # ── Confirm Transfer ──
+    elif command == "confirm" and len(args) > 1 and args[1].lower() == "transfer":
+        if not PENDING_SEND:
+            print("❌ No pending transfer. First use: send <amt> <token> to <address>")
+            return
+
+        amt = PENDING_SEND["amount"]
+        tok = PENDING_SEND["token"]
+        toa = PENDING_SEND["to"]
+
+        try:
+            # TODO: wire up your real RPC / backend call here
+            print(f"🚀 Sent {amt} {tok}! (simulated)")
+        except Exception as e:
+            print(f"❌ Transfer failed: {str(e)}")
+        finally:
+            PENDING_SEND = {}
+        return
 
     # ────────── Swap Quote ──────────
     elif command == "swap" and len(args) >= 5 and args[3].lower() == "to":
