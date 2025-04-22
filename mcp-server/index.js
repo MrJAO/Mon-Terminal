@@ -1,4 +1,3 @@
-// index.js
 import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
@@ -16,7 +15,11 @@ import achievementsMintRoute from './api/achievements/mint.js'
 import router from './api/swap.js'
 import tokenReportRoute from './api/token-report.js'
 import bestPriceRoute from './api/best-price.js'
-import checkNFTRouter from './routes/checkNFT.js';
+import checkNFTRouter from './routes/checkNFT.js'
+
+// 🆕 Monorail swap logic (quote + confirm)
+import quoteBuilder from './routes/quoteBuilder.js'
+import swapBuilder from './routes/swapBuilder.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -43,9 +46,14 @@ app.use(express.json())
 // 🧠 MCP API Routes
 app.use('/api/analyze', analyzeRoute)
 
-// Swap routes (quote & build) via Monorail
+// Existing Swap routes
 app.use('/api/swap', router)
 console.log('✅ Swap routes mounted at /api/swap')
+
+// 🆕 Monorail-native tracking routes
+app.use('/api/track/quote', quoteBuilder)
+app.use('/api/track/confirm', swapBuilder)
+console.log('🧪 Monorail tracking routes mounted at /api/track/...')
 
 // Other API routes
 app.use('/api/command', commandRoute)
@@ -61,7 +69,7 @@ app.use('/api/token-report', tokenReportRoute)
 app.use('/api/best-price', bestPriceRoute)
 
 // NFT Functions
-app.use('/api/checkNFT', checkNFTRouter);
+app.use('/api/checkNFT', checkNFTRouter)
 
 // ✅ Root healthcheck
 app.get('/', (req, res) => {

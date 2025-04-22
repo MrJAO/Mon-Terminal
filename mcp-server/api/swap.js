@@ -10,9 +10,10 @@ global._LAST_SWAP_QUOTE = global._LAST_SWAP_QUOTE || null
 
 const {
   MONORAIL_API_URL = 'https://testnet-pathfinder-v2.monorail.xyz',
-  SLIPPAGE = '50',      // default 0.5% (50 bps)
-  DEADLINE = '60',      // 1 minute
-  MAX_HOPS = '3'        // default max hops
+  MONORAIL_DATA_API = 'https://testnet-api.monorail.xyz',
+  SLIPPAGE = '50',
+  DEADLINE = '60',
+  MAX_HOPS = '3'
 } = process.env
 
 const TOKEN_ADDRESSES = {
@@ -34,9 +35,25 @@ const TOKEN_ADDRESSES = {
   gMON: '0xaeef2f6b429cb59c9b2d7bb2141ada993e8571c3',
 }
 
-function resolveAddr(input) {
-  const sym = input.toUpperCase()
-  return TOKEN_ADDRESSES[sym] || input
+// 🌐 Resolve token address dynamically
+async function resolveTokenAddress(symbol) {
+  if (!symbol) return null
+  if (symbol.toLowerCase() === 'mon') return '0x0000000000000000000000000000000000000000'
+
+  try {
+    const verified = await fetch(`${MONORAIL_DATA_API}/v1/tokens/category/verified`)
+    const list = await verified.json()
+    const match = list.find(t => t.symbol.toLowerCase() === symbol.toLowerCase())
+    if (match) return match.address
+
+    const search = await fetch(`${MONORAIL_DATA_API}/v1/tokens?find=${symbol}`)
+    const results = await search.json()
+    const exact = results.find(t => t.symbol.toLowerCase() === symbol.toLowerCase())
+    return exact?.address || results[0]?.address || null
+  } catch (err) {
+    console.warn(`⚠️ Failed to resolve ${symbol} via Monorail API:`, err.message)
+    return TOKEN_ADDRESSES[symbol.toUpperCase()] || null
+  }
 }
 
 router.get('/test', (req, res) => {
@@ -49,13 +66,17 @@ router.post('/quote', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing from, to, amount, or sender.' })
   }
 
-  from = resolveAddr(from)
-  to   = resolveAddr(to)
+  const fromAddr = await resolveTokenAddress(from)
+  const toAddr   = await resolveTokenAddress(to)
+
+  if (!fromAddr || !toAddr) {
+    return res.status(400).json({ success: false, error: 'Invalid token symbol or address resolution failed.' })
+  }
 
   try {
     const url = new URL(`${MONORAIL_API_URL}/v1/quote`)
-    url.searchParams.set('from', from)
-    url.searchParams.set('to', to)
+    url.searchParams.set('from', fromAddr)
+    url.searchParams.set('to', toAddr)
     url.searchParams.set('amount', amount)
     url.searchParams.set('sender', sender)
     url.searchParams.set('slippage', SLIPPAGE)
@@ -71,7 +92,7 @@ router.post('/quote', async (req, res) => {
       return res.status(resp.status).json({ success: false, error: json.error || 'Monorail quote error.' })
     }
 
-    global._LAST_SWAP_QUOTE = { from, to, amount, sender }
+    global._LAST_SWAP_QUOTE = { from: fromAddr, to: toAddr, amount, sender }
     return res.json({ success: true, quote: json })
   } catch (err) {
     console.error('❌ Quote error:', err)
@@ -102,7 +123,7 @@ router.post('/confirm', async (req, res) => {
     const resp = await fetch(url.toString())
     const contentType = resp.headers.get('content-type') || ''
     const raw = await resp.text()
-    
+
     let txObj
     try {
       txObj = JSON.parse(raw)
@@ -128,6 +149,5 @@ router.post('/confirm', async (req, res) => {
     return res.status(500).json({ success: false, error: err.message })
   }
 })
-
 
 export default router
