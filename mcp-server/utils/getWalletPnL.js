@@ -2,7 +2,7 @@
 import { ethers } from 'ethers'
 import { provider } from './provider.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import fetch from 'node-fetch'
+import { getQuote } from '../api/quoteService.js'
 
 const DECIMALS_CACHE = {
   MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18, 
@@ -16,58 +16,31 @@ const ERC20_ABI = [
 ]
 
 const FALLBACK_PRICES = {
-  MON: 10,
-  USDC: 1,
-  USDT: 1,
-  DAK: 2,
-  YAKI: 0.013,
-  CHOG: 0.164,
-  WMON: 10,
-  WETH: 1500,
-  WBTC: 75000,
-  WSOL: 130,
-  BEAN: 2.103,
-  shMON: 10,
-  MAD: 0.098,
-  sMON: 10,
-  aprMON: 10,
-  gMON: 10
+  MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164, WMON: 10,
+  WETH: 1500, WBTC: 75000, WSOL: 130, BEAN: 2.103, shMON: 10, MAD: 0.098,
+  sMON: 10, aprMON: 10, gMON: 10
 }
 
-// 🔁 In-memory price cache
 const PRICE_CACHE = {}
+const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
 
 async function getPriceFromMonorail(tokenAddress) {
   if (PRICE_CACHE[tokenAddress]) return PRICE_CACHE[tokenAddress]
 
   try {
-    const res = await fetch('https://testnet-pathfinder-v2.monorail.xyz/v1/quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: tokenAddress,
-        to: '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea', // USDC
-        amount: '1000000000000000000', // 1 token in wei
-        sender: '0x0000000000000000000000000000000000000000'
-      })
+    const data = await getQuote({
+      from: tokenAddress,
+      to: USDC_ADDRESS,
+      amount: '1000000000000000000',
+      sender: '0x0000000000000000000000000000000000000000'
     })
 
-    // Catch non-JSON or error responses
-    const text = await res.text()
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch (e) {
-      throw new Error(`Invalid JSON: ${text.slice(0, 100)}`)
-    }
-
-    if (data.success && data.quote?.output_formatted) {
-      const price = parseFloat(data.quote.output_formatted)
+    const price = parseFloat(data.quote.output_formatted)
+    if (!isNaN(price)) {
       PRICE_CACHE[tokenAddress] = price
       return price
     }
-
-    throw new Error(data.error || 'Invalid quote response')
+    throw new Error('Invalid quote format')
   } catch (err) {
     console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)
     const t = TOKEN_LIST.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase())

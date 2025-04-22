@@ -1,6 +1,6 @@
 // utils/tokenReport.js
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import fetch from 'node-fetch'
+import { getQuote } from '../api/quoteService.js'
 
 const FALLBACK_PRICES = {
   MON: 10,
@@ -21,32 +21,21 @@ const FALLBACK_PRICES = {
   gMON: 10
 }
 
+const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
+
 async function getPriceFromMonorail(tokenAddress) {
   try {
-    const res = await fetch('https://testnet-pathfinder-v2.monorail.xyz/v1/quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: tokenAddress,
-        to: '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea', // USDC
-        amount: '1000000000000000000', // 1 token in wei
-        sender: '0x0000000000000000000000000000000000000000'
-      })
+    const data = await getQuote({
+      from: tokenAddress,
+      to: USDC_ADDRESS,
+      amount: '1000000000000000000',
+      sender: '0x0000000000000000000000000000000000000000'
     })
 
-    const text = await res.text()
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch {
-      throw new Error(`Invalid JSON: ${text.slice(0, 80)}...`)
-    }
+    const price = parseFloat(data.quote.output_formatted)
+    if (!isNaN(price)) return price
 
-    if (data.success && data.quote?.output_formatted) {
-      return parseFloat(data.quote.output_formatted)
-    }
-
-    throw new Error(data.error || 'Invalid quote response')
+    throw new Error('Invalid quote format')
   } catch (err) {
     console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)
     const token = TOKEN_LIST.find(

@@ -1,9 +1,10 @@
 // api/best-price.js
 import express from 'express'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import fetch from 'node-fetch'
+import { getQuote } from './quoteService.js'
 
 const router = express.Router()
+const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
 
 router.post('/', async (req, res) => {
   const { symbol } = req.body
@@ -14,38 +15,24 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const quoteRes = await fetch('https://testnet-pathfinder-v2.monorail.xyz/v1/quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: token.address,
-        to: '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea', // USDC address
-        amount: '1000000000000000000',
-        sender: '0x0000000000000000000000000000000000000000'
-      })
+    const data = await getQuote({
+      from: token.address,
+      to: USDC_ADDRESS,
+      amount: '1000000000000000000',
+      sender: '0x0000000000000000000000000000000000000000'
     })
 
-    const text = await quoteRes.text()
-    let data
-    try {
-      data = JSON.parse(text)
-    } catch {
-      return res.status(502).json({
-        success: false,
-        error: `Invalid JSON response from Monorail: ${text.slice(0, 80)}...`,
-      })
-    }
-
-    if (!data.success || !data.quote?.output_formatted) {
+    const price = parseFloat(data?.quote?.output_formatted)
+    if (!price || isNaN(price)) {
       return res.status(404).json({
         success: false,
-        error: data.error || 'Quote not available from Monorail'
+        error: 'Invalid price data from Monorail'
       })
     }
 
     return res.json({
       success: true,
-      price: parseFloat(data.quote.output_formatted).toFixed(4),
+      price: price.toFixed(4),
       symbol: token.symbol,
       quotedIn: 'USDC',
       source: 'Monorail Pathfinder',
