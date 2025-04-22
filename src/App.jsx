@@ -502,52 +502,55 @@ function App() {
         ])
       }
     
-      // ── Confirm Transfer ──
-      else if (cmd === 'confirm' && sub === 'transfer') {
-        if (!pendingSend) {
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            '❌ No pending transfer. First use: send <amt> <token> to <address>'
-          ])
-          return
-        }
-    
-        const { amount, token, to } = pendingSend
+    // ── Confirm Transfer ──
+    else if (cmd === 'confirm' && sub === 'transfer') {
+      if (!pendingSend) {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
-          '> Executing transfer…'
+          '❌ No pending transfer. First use: send <amt> <token> to <address>'
         ])
-    
-        try {
-          let txHash
-          if (token === 'MON') {
-            const value = ethers.utils.parseEther(amount)
-            txHash = await walletClient.sendTransaction({ to, value })
-          } else {
-            const tokenAddress = await resolveTokenAddress(token)
-            if (!tokenAddress) throw new Error(`Unknown token ${token}`)
-            const decimals = await new ethers.Contract(tokenAddress, erc20Abi, walletClient).decimals()
-            const amt = ethers.utils.parseUnits(amount, decimals)
-            txHash = await writeContractAsync({
-              abi: erc20Abi,
-              address: tokenAddress,
-              functionName: 'transfer',
-              args: [to, amt]
-            })
-          }
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            `> ✅ Sent ${amount} ${token}. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
-          ])
-        } catch (err) {
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            `❌ Transfer failed: ${err.message}`
-          ])
-        } finally {
-          setPendingSend(null)
-        }
+        return
       }
+
+      const { amount, token, to } = pendingSend
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        '> Executing transfer…'
+      ])
+
+      try {
+        let txHash
+        if (token === 'MON') {
+          // convert decimal MON string to Wei BigInt
+          const value = BigInt(Math.floor(Number(amount) * 1e18))
+          txHash = await walletClient.sendTransaction({ to, value })
+        } else {
+          const tokenAddress = await resolveTokenAddress(token)
+          if (!tokenAddress) throw new Error(`Unknown token ${token}`)
+          // fetch decimals, then convert
+          const decimals = await new ethers.Contract(tokenAddress, erc20Abi, walletClient).decimals()
+          const amt = BigInt(Math.floor(Number(amount) * 10 ** decimals))
+          txHash = await writeContractAsync({
+            abi: erc20Abi,
+            address: tokenAddress,
+            functionName: 'transfer',
+            args: [to, amt]
+          })
+        }
+
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          `> ✅ Sent ${amount} ${token}. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
+        ])
+      } catch (err) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          `❌ Transfer failed: ${err.message}`
+        ])
+      } finally {
+        setPendingSend(null)
+      }
+    }
     
       // ── Swap Quote ──
       else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
