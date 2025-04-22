@@ -5,29 +5,33 @@ import rollupNodePolyFill from 'rollup-plugin-polyfill-node'
 
 export default defineConfig({
   define: {
-    // make `global` available
+    // make `global` available in the browser
     global: 'window',
-    // (optional) shim process.env
+    // optional: shim process.env if any libs reference it
     'process.env': {}
   },
   resolve: {
     alias: {
-      // polyfill process and buffer
+      // polyfill Node.js core shims for process and buffer
       process: 'process/browser',
       buffer: 'buffer/'
     }
   },
   optimizeDeps: {
-    // ensure these deps get pre-bundled
+    // ensure these get pre-bundled during dev
     include: ['process', 'buffer']
   },
   build: {
     rollupOptions: {
-      // polyfill other Node.js core modules if needed
-      plugins: [ rollupNodePolyFill() ]
+      // polyfill other Node.js core modules for production build
+      plugins: [
+        rollupNodePolyFill()
+      ]
     }
   },
-  plugins: [react()],
+  plugins: [
+    react()
+  ],
   server: {
     host: 'localhost',
     port: 5173,
