@@ -168,7 +168,7 @@ def simulate_achievements():
                 return "No achievements unlocked yet."
             lines = ["Unlocked Achievements:"]
             lines += [f"- {label}" for label in unlocked]
-            lines.append("Type `mint <achievement_id>` to mint any new achievements.")
+            lines.append("Type mint <achievement_id> to mint any new achievements.")
             return "\n".join(lines)
         else:
             return f"❌ Failed to fetch achievements: {data.get('error', 'Unknown error')}"
@@ -439,7 +439,7 @@ def main():
         print(simulate_nft_search(keyword))
 
     else:
-        print(f"> {' '.join(args)}\nUnknown command. Type `help` to see available options.")
+        print(f"> {' '.join(args)}\nUnknown command. Type help to see available options.")
 
 if __name__ == "__main__":
     main()

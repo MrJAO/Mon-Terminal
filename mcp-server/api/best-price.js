@@ -1,46 +1,47 @@
 // api/best-price.js
 import express from 'express'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { fetchMonorailPrice } from './fetchMonorailPrice.js'
+import { getQuote } from './quoteService.js'
 
 const router = express.Router()
-
-const FALLBACK_PRICES = {
-  MON: 10, USDC: 1, USDT: 1, DAK: 2, YAKI: 0.013, CHOG: 0.164,
-  WMON: 10, WETH: 1500, WBTC: 75000, WSOL: 130, BEAN: 2.103,
-  shMON: 10, MAD: 0.098, sMON: 10, aprMON: 10, gMON: 10
-}
+const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
 
 router.post('/', async (req, res) => {
   const { symbol } = req.body
   const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === symbol?.toUpperCase())
+
   if (!token) {
     return res.status(400).json({ success: false, error: 'Invalid token symbol.' })
   }
-  const fallback = FALLBACK_PRICES[token.symbol] || 0
 
-  let price, note
   try {
-    price = await fetchMonorailPrice(token.symbol)
-    if (typeof price !== 'number' || isNaN(price)) {
-      console.warn(`[BestPrice Fallback] ${symbol}: invalid price ${price}`)
-      price = fallback
-      note = 'Using fallback price due to invalid data'
-    }
-  } catch (err) {
-    console.error(`❌ BestPrice error for ${symbol}:`, err)
-    price = fallback
-    note = 'Using fallback price due to error'
-  }
+    const data = await getQuote({
+      from: token.address,
+      to: USDC_ADDRESS,
+      amount: '1000000000000000000',
+      sender: '0x0000000000000000000000000000000000000000'
+    })
 
-  return res.json({
-    success: true,
-    price:     price.toFixed(4),
-    symbol:    token.symbol,
-    quotedIn:  'USDC',
-    source:    'Monorail Pathfinder',
-    ...(note ? { note } : {})
-  })
+    const price = parseFloat(data?.quote?.output_formatted)
+    if (!price || isNaN(price)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Invalid price data from Monorail'
+      })
+    }
+
+    return res.json({
+      success: true,
+      price: price.toFixed(4),
+      symbol: token.symbol,
+      quotedIn: 'USDC',
+      source: 'Monorail Pathfinder',
+      note: 'Thanks Monorail API team for making this quote available 🧠✨'
+    })
+  } catch (err) {
+    console.error('❌ Monorail quote error:', err)
+    return res.status(500).json({ success: false, error: err.message })
+  }
 })
 
 export default router

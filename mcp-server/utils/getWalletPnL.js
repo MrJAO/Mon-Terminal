@@ -5,8 +5,8 @@ import TOKEN_LIST from '../../src/constants/tokenList.js'
 import { getQuote } from '../api/quoteService.js'
 
 const DECIMALS_CACHE = {
-  MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18,
-  WETH: 18, WBTC: 8, WSOL: 9, BEAN: 18, shMON: 18, MAD: 18,
+  MON: 18, USDC: 6, USDT: 6, DAK: 18, YAKI: 18, CHOG: 18, WMON: 18, 
+  WETH: 18, WBTC: 8, WSOL: 9, BEAN: 18, shMON: 18, MAD: 18, 
   sMON: 18, aprMON: 18, gMON: 18
 }
 
@@ -21,30 +21,31 @@ const FALLBACK_PRICES = {
   sMON: 10, aprMON: 10, gMON: 10
 }
 
+const PRICE_CACHE = {}
 const USDC_ADDRESS = '0xf817257fed379853cDe0fa4F97AB987181B1e5Ea'
-const NULL_SENDER   = '0x0000000000000000000000000000000000000000'
 
-async function fetchMonorailPrice(symbol) {
-  const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === symbol.toUpperCase())
-  if (!token) throw new Error(`Token ${symbol} not found`)
-
-  const from = token.symbol === 'MON'
-    ? TOKEN_LIST.find(t => t.symbol === 'WMON')?.address
-    : token.address
-  const decimals = DECIMALS_CACHE[token.symbol] || 18
-  const amount   = (BigInt(10) ** BigInt(decimals)).toString()
+async function getPriceFromMonorail(tokenAddress) {
+  if (PRICE_CACHE[tokenAddress]) return PRICE_CACHE[tokenAddress]
 
   try {
-    const data = await getQuote({ from, to: USDC_ADDRESS, amount, sender: NULL_SENDER })
-    const formatted = data?.output_formatted
-      ?? data?.quote?.output_formatted
-      ?? data?.output?.formatted
-    const price = parseFloat(formatted)
-    if (!isNaN(price)) return price
-    throw new Error(`Missing or invalid price field: ${formatted}`)
+    const data = await getQuote({
+      from: tokenAddress,
+      to: USDC_ADDRESS,
+      amount: '1000000000000000000',
+      sender: '0x0000000000000000000000000000000000000000'
+    })
+
+    const price = parseFloat(data.quote.output_formatted)
+    if (!isNaN(price)) {
+      PRICE_CACHE[tokenAddress] = price
+      return price
+    }
+    throw new Error('Invalid quote format')
   } catch (err) {
-    console.warn(`[Monorail Price Error] ${symbol}: ${err.message}`)
-    return FALLBACK_PRICES[symbol.toUpperCase()] ?? 0
+    console.warn(`[Monorail Price Error] ${tokenAddress}:`, err.message)
+    const t = TOKEN_LIST.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase())
+    const sym = t?.symbol?.toUpperCase()
+    return sym && FALLBACK_PRICES[sym] != null ? FALLBACK_PRICES[sym] : 0
   }
 }
 
@@ -62,12 +63,14 @@ async function getRecentTokenTransfers(address, contract) {
         withMetadata: true
       }]
     }
+
     const res = await fetch(process.env.ALCHEMY_TESTNET_RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     })
-    const data      = await res.json()
+
+    const data = await res.json()
     const transfers = data?.result?.transfers || []
 
     const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
@@ -83,83 +86,56 @@ async function getRecentTokenTransfers(address, contract) {
 
 export async function getWalletPnL(address, tokenSymbol) {
   const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === tokenSymbol.toUpperCase())
+
   if (!token) {
     return [{ symbol: tokenSymbol, error: 'Token not found in list.' }]
   }
 
-  // ─── Unit‐quote for any token: 1 TOKEN → USDC ───
-  {
-    const decimals = DECIMALS_CACHE[token.symbol] || 18
-    const fromAddr = token.symbol.toUpperCase() === 'MON'
-      ? TOKEN_LIST.find(t => t.symbol === 'WMON')?.address
-      : token.address
-    const amount = (BigInt(10) ** BigInt(decimals)).toString()
-
-    try {
-      const data = await getQuote({ from: fromAddr, to: USDC_ADDRESS, amount, sender: NULL_SENDER })
-      const formatted = data?.output_formatted
-        ?? data?.quote?.output_formatted
-        ?? data?.output?.formatted
-      const price = parseFloat(formatted)
-      return [{
-        symbol: token.symbol,
-        averageBuyPrice: 0,
-        currentPrice:    price,
-        currentBalance:  1,
-        currentValue:    price,
-        totalCost:       0,
-        pnl:             0
-      }]
-    } catch (err) {
-      console.warn(`[PnL Unit Quote Error] ${tokenSymbol}: ${err.message}`)
-      return [{ symbol: token.symbol, error: err.message }]
-    }
-  }
-
   try {
     const checksummedAddress = ethers.getAddress(address)
-    const decimals           = DECIMALS_CACHE[token.symbol] || 18
+    const decimals = DECIMALS_CACHE[token.symbol] || 18
     const transfers = token.address === 'native'
       ? []
       : await getRecentTokenTransfers(checksummedAddress, token.address)
 
-    let totalCost   = 0
+    let totalCost = 0
     let totalAmount = 0
 
     for (const tx of transfers) {
-      const amt   = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
-      const price = await fetchMonorailPrice(token.symbol)
+      const amount = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
+      const price = await getPriceFromMonorail(token.address)
       if (!price) continue
-      totalAmount += amt
-      totalCost   += amt * price
+
+      totalAmount += amount
+      totalCost += amount * price
     }
 
     const avgPrice = totalAmount > 0 ? totalCost / totalAmount : 0
-    let rawBalance
 
+    let rawBalance
     if (token.address === 'native') {
       rawBalance = await provider.getBalance(checksummedAddress)
     } else {
-      const contract   = new ethers.Contract(token.address, ERC20_ABI, provider)
-      rawBalance       = await contract.balanceOf(checksummedAddress)
+      const contract = new ethers.Contract(token.address, ERC20_ABI, provider)
+      rawBalance = await contract.balanceOf(checksummedAddress)
     }
 
     const currentBalance = parseFloat(ethers.formatUnits(rawBalance, decimals))
-    const currentPrice   = await fetchMonorailPrice(token.symbol)
-    const currentValue   = currentBalance * currentPrice
-    const pnl            = currentValue - totalCost
+    const currentPrice = await getPriceFromMonorail(token.address)
+    const currentValue = currentBalance * currentPrice
+    const pnl = currentValue - totalCost
 
     return [{
-      symbol:           token.symbol,
-      averageBuyPrice:  avgPrice,
+      symbol: token.symbol,
+      averageBuyPrice: avgPrice,
       currentPrice,
       currentBalance,
       currentValue,
       totalCost,
-      pnl:              parseFloat(pnl.toFixed(6))
+      pnl: parseFloat(pnl.toFixed(6))
     }]
   } catch (err) {
-    console.warn(`[PnL Error] ${tokenSymbol}: ${err.message}`)
+    console.warn(`[PnL Error] ${tokenSymbol}:`, err.message)
     return [{ symbol: tokenSymbol, error: err.message }]
   }
 }
