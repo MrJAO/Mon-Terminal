@@ -1,6 +1,5 @@
 // utils/fetchMonorailPrice.js
-// Force Rebuild
-import { getQuote } from '../api/quoteService.js'
+import { getQuote } from './quoteService.js'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 
 const FALLBACK_PRICES = {

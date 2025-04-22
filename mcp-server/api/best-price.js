@@ -1,7 +1,7 @@
 // api/best-price.js
 import express from 'express'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { fetchMonorailPrice } from '../utils/fetchMonorailPrice.js'
+import { fetchMonorailPrice } from './fetchMonorailPrice.js'
 
 const router = express.Router()
 
