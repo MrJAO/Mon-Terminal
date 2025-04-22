@@ -1,14 +1,16 @@
 // src/polyfills.js
-import process from 'process'
+import process from 'process/browser'
 import { Buffer } from 'buffer'
 
-// make Node‐isms available in browser
-if (typeof window.global === 'undefined') {
-  window.global = window
+// ensure globalThis exists everywhere
+if (typeof globalThis.global === 'undefined') {
+  globalThis.global = globalThis
 }
-if (typeof window.process === 'undefined') {
-  window.process = process
+
+// polyfill process and Buffer
+if (typeof globalThis.process === 'undefined') {
+  globalThis.process = process
 }
-if (typeof window.Buffer === 'undefined') {
-  window.Buffer = Buffer
+if (typeof globalThis.Buffer === 'undefined') {
+  globalThis.Buffer = Buffer
 }

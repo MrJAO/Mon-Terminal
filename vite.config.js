@@ -1,49 +1,35 @@
 // vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import rollupNodePolyFill from 'rollup-plugin-node-polyfills'
-import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
-import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill'
+import polyfillNode from 'rollup-plugin-polyfill-node'
 
 export default defineConfig({
   define: {
-    // Make `global` and `process.env` available
+    // so `global` & `process.env` aren’t undefined
     global: 'globalThis',
     'process.env': {},
   },
   resolve: {
     alias: {
-      // These aliases point imports of Node core modules at our polyfills
+      // point any Node core imports at browser polyfills
       process: 'process/browser',
       buffer: 'buffer',
-      util: 'rollup-plugin-node-polyfills/polyfills/util',
-      stream: 'rollup-plugin-node-polyfills/polyfills/stream',
-      events: 'rollup-plugin-node-polyfills/polyfills/events',
-      path: 'rollup-plugin-node-polyfills/polyfills/path',
-      crypto: 'rollup-plugin-node-polyfills/polyfills/crypto',
     },
   },
   optimizeDeps: {
-    esbuildOptions: {
-      // Inject the esbuild polyfills at dev‑time
-      define: { global: 'globalThis' },
-      plugins: [
-        NodeGlobalsPolyfillPlugin({ process: true, buffer: true }),
-        NodeModulesPolyfillPlugin(),
-      ],
-    },
+    // prebundle these
+    include: ['process', 'buffer'],
   },
   build: {
     rollupOptions: {
       plugins: [
-        // And again for the production build
-        rollupNodePolyFill(),
+        // this brings in all the Node built‑in polyfills on build
+        polyfillNode()
       ],
     },
   },
   plugins: [
-    // Rollup polyfills need to run *before* React plugin
-    rollupNodePolyFill(),
+    // Vite plugin chain: do React last so the polyfills are in place first
     react(),
   ],
   server: {
