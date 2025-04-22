@@ -375,7 +375,7 @@ def main():
             return
 
         try:
-            resp = requests.post("https://mon-terminal.onrender.com/api/swap/quote", json={
+            resp = requests.post("https://mon-terminal.onrender.com/api/track/quote", json={
                 "from":   from_token,
                 "to":     to_token,
                 "amount": amount,
@@ -412,7 +412,7 @@ def main():
             return
 
         try:
-            resp = requests.post("https://mon-terminal.onrender.com/api/swap/confirm", json=LAST_SWAP_QUOTE)
+            resp = requests.post("https://mon-terminal.onrender.com/api/track/confirm", json=LAST_SWAP_QUOTE)
             data = resp.json()
             if data.get("success") and data.get("transaction"):
                 tx = data["transaction"]

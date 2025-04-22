@@ -20,15 +20,26 @@ export async function buildSwap({ from, to, amount, sender }) {
   url.searchParams.set('source', 'mon-terminal')
   url.searchParams.set('build', 'true')
 
+  // Log full build URL
+  console.log('🚀 Build URL:', url.toString())
+
   const resp = await fetch(url.toString())
   const raw = await resp.text()
 
+  // Log and flush Monorail response even on fatal parse issues
+  console.log('📦 Raw Monorail response (pre-parse):', raw)
+  await new Promise(resolve => setTimeout(resolve, 100)) // flush logs
+  
   let json
   try {
     json = JSON.parse(raw)
-  } catch {
+  } catch (err) {
+    console.error('❌ JSON parse failed:', err.message)
     throw new Error(`Non-JSON response: ${raw}`)
-  }
+  }  
+
+  // Log parsed response
+  console.log('🧾 Monorail build response JSON:', JSON.stringify(json, null, 2))
 
   if (!resp.ok) {
     throw new Error(json?.error || `Build failed: ${raw}`)
@@ -36,8 +47,11 @@ export async function buildSwap({ from, to, amount, sender }) {
 
   const rawTx = json.transaction?.rawTransaction || json.rawTransaction
   if (!rawTx) {
-    throw new Error('Missing rawTransaction in response')
-  }
+    console.warn('⚠️ Monorail returned no rawTransaction. Full payload below:')
+    console.warn(JSON.stringify(json, null, 2))
+    await new Promise(res => setTimeout(res, 100)) // flush logs before throwing
+    throw new Error(`Missing rawTransaction in response. Full payload: ${JSON.stringify(json)}`)
+  }  
 
   return rawTx
 }
