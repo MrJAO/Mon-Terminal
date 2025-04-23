@@ -478,6 +478,43 @@ def main():
         except Exception as e:
             print(f"❌ Swap confirm error: {e}")
 
+    # SHOW ME FREE MINTS
+
+    elif command == "show" and len(args) > 3 and args[1] == "me" and args[2] == "free" and args[3] == "nft":
+        try:
+            response = requests.get("https://api-mainnet.magiceden.dev/v2/collections?offset=0&limit=30")
+            collections = response.json()
+            free_mints = []
+
+            for col in collections:
+                symbol = col.get("symbol")
+                if not symbol:
+                    continue
+
+                try:
+                    listings_res = requests.get(f"https://api-mainnet.magiceden.dev/v2/collections/{symbol}/listings?limit=20")
+                    listings = listings_res.json()
+                    for item in listings:
+                        if item.get("price") == 0:
+                            free_mints.append(f"- {item.get('title') or item.get('tokenMint')} ({symbol})")
+                            if len(free_mints) >= 10:
+                                break
+                except:
+                    continue
+                if len(free_mints) >= 10:
+                    break
+
+            if free_mints:
+                print("🆓 Free NFT Mints from Magic Eden:")
+                for mint in free_mints:
+                    print(mint)
+            else:
+                print("❌ No free NFT mints found right now.")
+
+        except Exception as e:
+            print(f"❌ Failed to fetch free mints: {str(e)}")
+        return
+
     elif command == "show" and len(args) > 2 and args[1] == "my" and args[2] == "nfts":
         sort_by = None
         if len(args) > 3 and args[3].startswith('--sort='):

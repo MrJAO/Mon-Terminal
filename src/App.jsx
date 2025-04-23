@@ -8,10 +8,12 @@ import { useWalletClient } from 'wagmi'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
+import './freeMint.css'
 import './NFT.css';
 import { getWalletClient } from '@wagmi/core'
 import { ethers } from 'ethers'
 import erc20Abi from './abi/erc20.json'
+import { fetchFreeMints } from './utils/fetchFreeMints'
 import { resolveTokenAddress } from '../mcp-server/api/resolveToken.js'
 import {
   BarChart,
@@ -742,7 +744,47 @@ function App() {
             `❌ Unable to fetch NFTs: ${e.message}`
           ])
           setNftResults(null)
-        }        
+        } 
+        return
+        
+      } else if (input.toLowerCase() === 'show me free nft mint') {
+        try {
+          const results = await fetchFreeMints(10)
+  
+          if (results.length === 0) {
+            setTerminalLines(prev => [
+              ...prev.slice(0, -1),
+              '❌ No free NFT mints found right now.'
+            ])
+            setNftResults(null)
+          } else {
+            const render = (
+              <div className="nft-container animate-fadeIn">
+                {results.map((nft, idx) => (
+                  <div key={idx} className="nft-item pixel-glow">
+                    <a href={nft.link} target="_blank" rel="noopener noreferrer">
+                      <img src={nft.image} alt={nft.name} />
+                      <div className="nft-name">{nft.name}</div>
+                      <div className="nft-divider" />
+                      <div className="nft-contract break-all leading-snug text-[10px] tracking-tight text-purple-300">
+                        Magic Eden Mint
+                      </div>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )
+            setTerminalLines(prev => [...prev.slice(0, -1), '🆓 Free NFT Mints from Magic Eden:'])
+            setNftResults(render)
+          }
+        } catch (err) {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            `❌ Error fetching Magic Eden mints: ${err.message}`
+          ])
+          setNftResults(null)
+        }
+        return  
 
       // ── Fallback Command ──
     } else {
