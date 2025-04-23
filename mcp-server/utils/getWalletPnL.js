@@ -23,7 +23,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
  */
 export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, toSymbol = 'USDC') {
   // Find token and destination token metadata
-  const token = TOKEN_LIST.find(t => t.symbol.toUpperCase() === tokenSymbol.toUpperCase())
+  const token   = TOKEN_LIST.find(t => t.symbol.toUpperCase() === tokenSymbol.toUpperCase())
   const toToken = TOKEN_LIST.find(t => t.symbol.toUpperCase() === toSymbol.toUpperCase())
 
   if (!token) {
@@ -42,15 +42,14 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
     let totalCost = 0
     let totalAmount = 0
 
-    // Fetch recent ERC20 transfers (skip native)
     if (token.address !== 'native') {
       const transfers = await getRecentTokenTransfers(checksummedAddress, token.address)
       for (const tx of transfers) {
-        const amount = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
+        const amt = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
         const price = await getPriceFromMonorail(token.address, toToken.address)
         if (!price) continue
-        totalAmount += amount
-        totalCost += amount * price
+        totalAmount += amt
+        totalCost   += amt * price
       }
     }
 
@@ -58,23 +57,23 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
 
     // 2) Quote the requested amount via Monorail
     const amountUnits = ethers.parseUnits(amountRequested.toString(), decimals).toString()
-    const quoteData = await getQuote(token.address, toToken.address, amountUnits, ZERO_ADDRESS)
-    const outAmount = parseFloat(quoteData.quote.output_formatted)
+    const quoteData   = await getQuote(token.address, toToken.address, amountUnits, ZERO_ADDRESS)
+    const outAmount   = parseFloat(quoteData.quote.output_formatted)
 
     // 3) Compute cost and PnL for the requested amount
     const costForAmount = averageBuyPrice * amountRequested
-    const pnlForAmount = outAmount - costForAmount
+    const pnlForAmount  = outAmount - costForAmount
     const pnlPercentage = costForAmount > 0 ? (pnlForAmount / costForAmount) * 100 : 0
 
     return [{
-      symbol: token.symbol,
-      amount: amountRequested,
-      to: toToken.symbol,
-      averageBuyPrice: parseFloat(averageBuyPrice.toFixed(6)),
-      quotedAmount: outAmount,
-      costForAmount: parseFloat(costForAmount.toFixed(6)),
-      pnlForAmount: parseFloat(pnlForAmount.toFixed(6)),
-      pnlPercentage: parseFloat(pnlPercentage.toFixed(2))
+      symbol:         token.symbol,
+      amount:         amountRequested,
+      to:             toToken.symbol,
+      averageBuyPrice:parseFloat(averageBuyPrice.toFixed(6)),
+      quotedAmount:   parseFloat(outAmount.toFixed(6)),
+      costForAmount:  parseFloat(costForAmount.toFixed(6)),
+      pnlForAmount:   parseFloat(pnlForAmount.toFixed(6)),
+      pnlPercentage:  parseFloat(pnlPercentage.toFixed(2))
     }]
   } catch (err) {
     console.warn(`[PnL Error] ${tokenSymbol}:`, err.message)
@@ -113,7 +112,7 @@ async function getPriceFromMonorail(fromAddress, toAddress) {
   const key = `${fromAddress}-${toAddress}`
   if (PRICE_CACHE[key]) return PRICE_CACHE[key]
   try {
-    const data = await getQuote(fromAddress, toAddress, ethers.parseUnits('1', DECIMALS_CACHE['USDC'] || 6).toString(), ZERO_ADDRESS)
+    const data  = await getQuote(fromAddress, toAddress, ethers.parseUnits('1', DECIMALS_CACHE['USDC'] || 6).toString(), ZERO_ADDRESS)
     const price = parseFloat(data.quote.output_formatted)
     PRICE_CACHE[key] = price
     return price
