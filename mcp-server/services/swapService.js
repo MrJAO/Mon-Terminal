@@ -32,7 +32,7 @@ export async function getQuote(from, to, amount, sender) {
   const resp = await fetch(url.toString())
   const data = await resp.json()
 
-  // 1) Debug log the raw Monorail response (truncated to 200 chars)
+  // 1) Debug log the raw Monorail response (truncated)
   console.log('🧩 Monorail raw quote response:', JSON.stringify(data).slice(0, 200))
 
   // 2) HTTP-level error
@@ -40,22 +40,19 @@ export async function getQuote(from, to, amount, sender) {
     throw new Error(data.error || `HTTP ${resp.status}`)
   }
 
-  // 3) Ensure we at least have `quote.output`
-  if (!data.quote || typeof data.quote.output !== 'string') {
+  // 3) Normalize wrapper: handle both nested and flat responses
+  const quote = data.quote ?? data
+  if (typeof quote.output !== 'string') {
     throw new Error('Malformed quote response from Monorail')
   }
 
-  // 4) Compute formatted output if missing
-  //    Look up `to` token’s decimals, defaulting to 18
-  const toMeta = TOKEN_LIST.find(t => 
-    t.address.toLowerCase() === to.toLowerCase()
-  )
+  // 4) Compute & inject formatted output
+  const toMeta       = TOKEN_LIST.find(t => t.address.toLowerCase() === to.toLowerCase())
   const destDecimals = toMeta?.decimals ?? 18
-  data.quote.output_formatted = ethers.formatUnits(
-    data.quote.output,
-    destDecimals
-  )
+  quote.output_formatted = ethers.formatUnits(quote.output, destDecimals)
 
+  // 5) Ensure returned shape always has data.quote
+  data.quote = quote
   return data
 }
 
