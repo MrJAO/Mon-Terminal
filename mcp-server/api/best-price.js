@@ -38,15 +38,9 @@ router.post('/', async (req, res) => {
       throw new Error(`Monorail quote failed: ${err.message}`)
     }
 
-    // 4) Extract output_formatted or fall back to raw `output`
-    let formatted = quoteData?.quote?.output_formatted
-    if (typeof formatted !== 'string') {
-      const rawOut = quoteData?.quote?.output ?? quoteData?.output
-      if (typeof rawOut === 'string') {
-        // format raw big‐number with the destination token decimals
-        formatted = ethers.formatUnits(rawOut, toToken.decimals || 6)
-      }
-    }
+    // 4) Extract formatted output
+    const rawQuote = quoteData.quote
+    const formatted = rawQuote.output_formatted
     if (typeof formatted !== 'string') {
       throw new Error('Malformed quote response from Monorail')
     }

@@ -20,34 +20,28 @@ export async function getTokenReport(symbol) {
   const toToken = TOKEN_LIST.find(t => t.symbol === USDC_SYMBOL)
   if (!toToken) throw new Error(`Destination token ${USDC_SYMBOL} not found.`)
 
-  // 2) Fetch a single 1-unit quote
+  // 2) Build a quote for exactly 1 unit
+  const inDecimals  = tokenMeta.decimals   || 18
+  const outDecimals = toToken.decimals     || 6
   let quoteData
   try {
-    const rawAmt = ethers.parseUnits('1', tokenMeta.decimals || 18).toString()
+    const rawAmt = ethers.parseUnits('1', inDecimals).toString()
     quoteData = await getQuote(tokenMeta.address, toToken.address, rawAmt, ZERO_ADDRESS)
   } catch (err) {
     throw new Error(`Monorail quote failed: ${err.message}`)
   }
 
-  // 3) Extract output_formatted, or fall back to raw `output`
-  let outFmt = quoteData?.quote?.output_formatted ?? quoteData?.output_formatted
-  if (typeof outFmt !== 'string') {
-    const rawOut = quoteData?.quote?.output ?? quoteData?.output
-    if (typeof rawOut === 'string') {
-      // format raw big-number by USDC decimals
-      outFmt = ethers.formatUnits(rawOut, toToken.decimals || 6)
-    }
-  }
-  if (typeof outFmt !== 'string') {
+  // 3) Extract and parse formatted output
+  const rawQuote = quoteData.quote
+  if (typeof rawQuote.output_formatted !== 'string') {
     throw new Error('Invalid quote response from Monorail')
   }
-
-  const price = parseFloat(outFmt)
+  const price = parseFloat(rawQuote.output_formatted)
   if (isNaN(price)) {
     throw new Error('Invalid price data from Monorail')
   }
 
-  // 4) Build 7-day history
+  // 4) Build 7-day constant history (same price each day)
   const oneDayMs = 24 * 60 * 60 * 1000
   const now      = Date.now()
   const prices   = []

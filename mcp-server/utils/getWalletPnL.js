@@ -3,11 +3,6 @@ import { ethers } from 'ethers'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
 import { getQuote } from '../services/swapService.js'
 
-const DECIMALS_CACHE = {
-  MON:   18, USDC:  6, USDT:  6, DAK:  18, YAKI: 18,
-  CHOG:  18, WMON: 18, WETH: 18, WBTC:  8, WSOL: 9,
-  BEAN:  18, shMON:18, MAD:   18, sMON:  18, aprMON:18, gMON: 18
-}
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 /**
@@ -21,8 +16,8 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
 
   try {
     const checksummed = ethers.getAddress(address)
-    const inDecimals  = DECIMALS_CACHE[token.symbol]   || token.decimals || 18
-    const outDecimals = DECIMALS_CACHE[toToken.symbol]|| toToken.decimals || 18
+    const inDecimals  = token.decimals   || 18
+    const outDecimals = toToken.decimals || 18
 
     // 1) Average buy price over recent ERC-20 transfers
     let totalCost = 0, totalAmt = 0
@@ -47,18 +42,10 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
       throw new Error(`Quote failed: ${err.message}`)
     }
 
-    // 3) Normalize the output: try `output_formatted`, else fall back to raw `output`
-    let formatted = quoteData?.quote?.output_formatted
-    if (typeof formatted !== 'string') {
-      const rawOut = quoteData?.quote?.output ?? quoteData?.output
-      if (typeof rawOut === 'string') {
-        formatted = ethers.formatUnits(rawOut, outDecimals)
-      }
-    }
-    if (typeof formatted !== 'string') {
-      throw new Error('Invalid quote response from Monorail')
-    }
-    const outAmt = parseFloat(formatted)
+    // 3) Normalize the output
+    const rawQuote = quoteData.quote
+    if (!rawQuote?.output_formatted) throw new Error('Invalid quote response from Monorail')
+    const outAmt = parseFloat(rawQuote.output_formatted)
 
     // 4) Compute PnL
     const costForAmount = avgBuyPrice * amountRequested
@@ -116,15 +103,13 @@ async function getPriceFromMonorail(fromAddr, toAddr) {
   const key = `${fromAddr}-${toAddr}`
   if (PRICE_CACHE[key]) return PRICE_CACHE[key]
   try {
-    const q = await getQuote(
-      fromAddr,
-      toAddr,
-      ethers.parseUnits('1', DECIMALS_CACHE['USDC'] || 6).toString(),
-      ZERO_ADDRESS
-    )
-    let s = q?.quote?.output_formatted ?? q?.output_formatted
-    if (typeof s !== 'string') s = ethers.formatUnits(q?.quote?.output ?? q?.output, DECIMALS_CACHE['USDC'] || 6)
-    const price = parseFloat(s) || 0
+    // Look up 'from' token decimals
+    const fromMeta = TOKEN_LIST.find(t => t.address.toLowerCase() === fromAddr.toLowerCase())
+    const fromDecimals = fromMeta?.decimals ?? 18
+    // Quote exactly 1 unit of from-token
+    const rawAmt = ethers.parseUnits('1', fromDecimals).toString()
+    const q = await getQuote(fromAddr, toAddr, rawAmt, ZERO_ADDRESS)
+    const price = parseFloat(q.quote.output_formatted) || 0
     PRICE_CACHE[key] = price
     return price
   } catch {
