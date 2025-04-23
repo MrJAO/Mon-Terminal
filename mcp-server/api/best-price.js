@@ -19,9 +19,8 @@ router.post('/', async (req, res) => {
     if (!token)   return res.status(400).json({ success: false, error: 'Invalid token symbol.' })
     if (!toToken) return res.status(400).json({ success: false, error: 'Invalid destination symbol.' })
 
-    // Quote 1 unit of `symbol`
+    // Quote 1 unit
     const rawAmt = ethers.parseUnits('1', token.decimals || 18).toString()
-
     let quoteData
     try {
       quoteData = await getQuote(token.address, toToken.address, rawAmt, sender)
@@ -29,7 +28,14 @@ router.post('/', async (req, res) => {
       throw new Error(`Monorail quote failed: ${err.message}`)
     }
 
-    const formatted = quoteData?.quote?.output_formatted
+    // Extract formatted output, or fall back to raw `output`
+    let formatted = quoteData?.quote?.output_formatted
+    if (typeof formatted !== 'string') {
+      const rawOut = quoteData?.quote?.output ?? quoteData?.output
+      formatted = typeof rawOut === 'string'
+        ? ethers.formatUnits(rawOut, toToken.decimals || 6)
+        : null
+    }
     if (typeof formatted !== 'string') {
       throw new Error('Malformed quote response from Monorail')
     }
@@ -40,6 +46,7 @@ router.post('/', async (req, res) => {
       data: { symbol: token.symbol, to: toToken.symbol, pricePerUnit },
       source: 'monorail-pathfinder'
     })
+
   } catch (err) {
     console.error('❌ /api/best-price error:', err)
     return res.status(500).json({ success: false, error: err.message })
