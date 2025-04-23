@@ -29,8 +29,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid destination symbol.' })
     }
 
-    // 3) Fetch a 1‐unit quote
-    const rawAmt = ethers.parseUnits('1', token.decimals || 18).toString()
+    // 3) Build raw amount for 1 unit of source token
+    const inDecimals = token.decimals || 18
+    const rawAmt = ethers.parseUnits('1', inDecimals).toString()
+    console.log(`> best-price rawAmt: ${rawAmt}`)
+
+    // 4) Fetch the quote
     let quoteData
     try {
       quoteData = await getQuote(token.address, toToken.address, rawAmt, sender)
@@ -38,14 +42,21 @@ router.post('/', async (req, res) => {
       throw new Error(`Monorail quote failed: ${err.message}`)
     }
 
-    // 4) Extract formatted output
-    const rawQuote = quoteData.quote
-    const formatted = rawQuote.output_formatted
+    // 5) Normalize response shape
+    const rawQuote = quoteData.quote ?? quoteData
+    if (typeof rawQuote.output !== 'string') {
+      throw new Error('Malformed quote response from Monorail')
+    }
+
+    // 6) Extract and log formatted output
+    const formatted = rawQuote.output_formatted ?? ethers.formatUnits(rawQuote.output, toToken.decimals || 6)
+    console.log(`> best-price raw output: ${rawQuote.output}, formatted: ${formatted}`)
+
     if (typeof formatted !== 'string') {
       throw new Error('Malformed quote response from Monorail')
     }
 
-    // 5) Respond with parsed number
+    // 7) Respond with parsed number
     const pricePerUnit = parseFloat(formatted)
     return res.json({
       success: true,

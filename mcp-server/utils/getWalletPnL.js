@@ -35,6 +35,7 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
 
     // 2) Get a Monorail quote for the desired amount
     const rawUnits = ethers.parseUnits(amountRequested.toString(), inDecimals).toString()
+    console.log('> PnL quoting rawUnits:', rawUnits)
     let quoteData
     try {
       quoteData = await getQuote(token.address, toToken.address, rawUnits, ZERO_ADDRESS)

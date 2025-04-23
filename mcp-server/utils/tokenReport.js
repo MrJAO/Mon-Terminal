@@ -26,17 +26,22 @@ export async function getTokenReport(symbol) {
   let quoteData
   try {
     const rawAmt = ethers.parseUnits('1', inDecimals).toString()
+    console.log(`> tokenReport quoting rawAmt: ${rawAmt}`)
     quoteData = await getQuote(tokenMeta.address, toToken.address, rawAmt, ZERO_ADDRESS)
   } catch (err) {
     throw new Error(`Monorail quote failed: ${err.message}`)
   }
 
-  // 3) Extract and parse formatted output
-  const rawQuote = quoteData.quote
-  if (typeof rawQuote.output_formatted !== 'string') {
+  // 3) Extract and format output
+  const rawQuote = quoteData.quote ?? quoteData
+  if (typeof rawQuote.output !== 'string') {
     throw new Error('Invalid quote response from Monorail')
   }
-  const price = parseFloat(rawQuote.output_formatted)
+  // Prefer injected formatted field, otherwise format locally
+  const formatted = rawQuote.output_formatted ?? ethers.formatUnits(rawQuote.output, outDecimals)
+  console.log(`> tokenReport raw output: ${rawQuote.output}, formatted: ${formatted}`)
+
+  const price = parseFloat(formatted)
   if (isNaN(price)) {
     throw new Error('Invalid price data from Monorail')
   }
