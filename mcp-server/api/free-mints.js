@@ -1,6 +1,6 @@
 // mcp-server/api/free-mints.js
-const express = require('express')
-const axios = require('axios')
+import express from 'express'
+import axios from 'axios'
 
 const router = express.Router()
 
@@ -41,4 +41,4 @@ router.get('/', async (req, res) => {
   }
 })
 
-module.exports = router
+export default router
