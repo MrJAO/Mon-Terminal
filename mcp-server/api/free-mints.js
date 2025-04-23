@@ -1,6 +1,8 @@
 // mcp-server/api/free-mints.js
 import express from 'express'
-import axios from 'axios'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const axios = require('axios')
 
 const router = express.Router()
 
