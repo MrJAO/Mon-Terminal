@@ -29,12 +29,12 @@ export async function getTokenReport(symbol) {
     throw new Error(`Monorail quote failed: ${err.message}`)
   }
 
-  // 3) Pull out output_formatted or fall back to raw `output`
+  // 3) Extract output_formatted, or fall back to raw `output`
   let outFmt = quoteData?.quote?.output_formatted ?? quoteData?.output_formatted
   if (typeof outFmt !== 'string') {
     const rawOut = quoteData?.quote?.output ?? quoteData?.output
     if (typeof rawOut === 'string') {
-      // format raw big-unit output with USDC decimals
+      // format raw big-number by USDC decimals
       outFmt = ethers.formatUnits(rawOut, toToken.decimals || 6)
     }
   }
@@ -47,7 +47,7 @@ export async function getTokenReport(symbol) {
     throw new Error('Invalid price data from Monorail')
   }
 
-  // 4) Build 7-day history entries
+  // 4) Build 7-day history
   const oneDayMs = 24 * 60 * 60 * 1000
   const now      = Date.now()
   const prices   = []
@@ -58,7 +58,7 @@ export async function getTokenReport(symbol) {
     prices.push({ date, price: parseFloat(price.toFixed(6)) })
   }
 
-  // 5) Compute percent change & sentiment
+  // 5) Compute change & sentiment
   const first = prices[0].price
   const last  = prices[prices.length - 1].price
   const change        = last - first

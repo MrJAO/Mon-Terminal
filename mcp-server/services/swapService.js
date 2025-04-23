@@ -1,5 +1,7 @@
 // mcp-server/services/swapService.js
 import fetch from 'node-fetch'
+import { ethers } from 'ethers'
+import TOKEN_LIST from '../../src/constants/tokenList.js'
 
 const {
   MONORAIL_API_URL = 'https://testnet-pathfinder-v2.monorail.xyz',
@@ -14,7 +16,7 @@ const {
  * @param {string} to     - destination token address
  * @param {string} amount - amount in wei/base units
  * @param {string} sender - sender address
- * @returns {Promise<object>} - parsed JSON quote response
+ * @returns {Promise<object>} - parsed JSON quote response with guaranteed `quote.output_formatted`
  */
 export async function getQuote(from, to, amount, sender) {
   const url = new URL(`${MONORAIL_API_URL}/v1/quote`)
@@ -38,10 +40,21 @@ export async function getQuote(from, to, amount, sender) {
     throw new Error(data.error || `HTTP ${resp.status}`)
   }
 
-  // 3) Validate expected quote format
-  if (!data.quote || typeof data.quote.output_formatted !== 'string') {
-    throw new Error('Monorail quote missing output_formatted')
+  // 3) Ensure we at least have `quote.output`
+  if (!data.quote || typeof data.quote.output !== 'string') {
+    throw new Error('Malformed quote response from Monorail')
   }
+
+  // 4) Compute formatted output if missing
+  //    Look up `to` token’s decimals, defaulting to 18
+  const toMeta = TOKEN_LIST.find(t => 
+    t.address.toLowerCase() === to.toLowerCase()
+  )
+  const destDecimals = toMeta?.decimals ?? 18
+  data.quote.output_formatted = ethers.formatUnits(
+    data.quote.output,
+    destDecimals
+  )
 
   return data
 }
