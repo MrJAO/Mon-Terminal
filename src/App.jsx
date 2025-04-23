@@ -212,62 +212,68 @@ function App() {
   
     const [cmd, sub, tokenArg, ...rest] = input.split(' ')
   
-    // ── PnL ──
-    if (cmd === 'check' && sub === 'pnl') {
-      const token = tokenArg?.toUpperCase()
-      if (!token) {
-        setTerminalLines(prev => [
-          ...prev,
-          '> Please specify a token symbol (e.g., check pnl DAK)'
-        ])
-        return
-      }
-  
-      try {
-        const res = await fetch(`${baseApiUrl}/pnl`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address, token })
+  // ── PnL ──
+  if (cmd === 'check' && sub === 'pnl') {
+    const symbol    = tokenArg?.toUpperCase()
+    const amount    = rest[0]
+    const toKeyword = rest[1]?.toLowerCase()
+    const dest      = rest[2]?.toUpperCase()
+
+    // Validate full syntax: check pnl <TOKEN> <AMOUNT> to <DEST>
+    if (!symbol || !amount || toKeyword !== 'to' || !dest) {
+      setTerminalLines(prev => [
+        ...prev,
+        '❌ Usage: check pnl <token> <amt> to <dest>'
+      ])
+      return
+    }
+
+    try {
+      const res = await fetch(`${baseApiUrl}/pnl`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          address,
+          token:  symbol,
+          amount,
+          to:      dest
         })
-  
-        const data = await res.json()
-  
-        if (data.success && Array.isArray(data.data) && data.data[0] && !data.data[0].error) {
-          const entry = data.data[0]
-          const output = [
-            `PNL Report for ${entry.symbol}:`,
-            `- Average Buy Price: $${entry.averageBuyPrice.toFixed(4)}`,
-            `- Current Price:     $${entry.currentPrice.toFixed(4)}`,
-            `- Current Balance:   ${entry.currentBalance.toFixed(6)} ${entry.symbol}`,
-            `- Current Value:     $${entry.currentValue.toFixed(2)}`,
-            `- Total Cost:        $${entry.totalCost.toFixed(2)}`,
-            `- PnL:               $${entry.pnl.toFixed(2)}`
-          ].join('\n')
-  
-          setCurrentPnL(entry.pnl)
-          setPnlChartData([
-            { label: 'Buy', value: entry.totalCost },
-            { label: 'Now', value: entry.currentValue },
-            { label: 'PnL', value: entry.pnl }
-          ])
-  
-          setTerminalLines(prev => {
-            const lines = prev.slice(0, -1)
-            return [...lines, output]
-          })
-        } else {
-          const errMsg = data.data?.[0]?.error || data.error || 'Unable to fetch PnL data.'
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            `❌ ${errMsg}`
-          ])
-        }
-      } catch {
+      })
+      const data = await res.json()
+
+      if (data.success && data.data && !data.data.error) {
+        const e = data.data
+        const output = [
+          `PNL Report for ${e.symbol} (${amount}→${e.to}):`,
+          `- Quoted Amount: ${e.quotedAmount} ${e.to}`,
+          `- Cost for ${amount}: $${e.costForAmount.toFixed(6)}`,
+          `- PnL:               $${e.pnlForAmount.toFixed(6)} (${e.pnlPercentage.toFixed(2)}%)`
+        ].join('\n')
+
+        setCurrentPnL(e.pnlForAmount)
+        setPnlChartData([
+          { label: 'Cost', value: e.costForAmount },
+          { label: 'Now',  value: e.quotedAmount },
+          { label: 'PnL',  value: e.pnlForAmount }
+        ])
+
+        setTerminalLines(prev => {
+          const lines = prev.slice(0, -1)
+          return [...lines, output]
+        })
+      } else {
+        const errMsg = data.error || 'Unable to fetch PnL data.'
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
-          '❌ Mon Terminal is not responding.'
+          `❌ ${errMsg}`
         ])
-      } 
+      }
+    } catch {
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        '❌ Mon Terminal is not responding.'
+      ])
+    } 
   
     } else if ((cmd === 'my' && sub === 'achievements') || cmd === 'achievements') {
       try {
@@ -410,53 +416,78 @@ function App() {
         })
       }
     
-      // ── Token Report ──
+    // ── Token Report ──
     } else if (cmd === 'token' && sub === 'report') {
-      const symbol = tokenArg?.toUpperCase()
-      if (!symbol) {
+      const symbol    = tokenArg?.toUpperCase()
+      const amount    = rest[0]
+      const toKeyword = rest[1]?.toLowerCase()
+      const dest      = rest[2]?.toUpperCase()
+
+      // 1) Validate syntax
+      if (!symbol || !amount || toKeyword !== 'to' || !dest) {
         setTerminalLines(prev => [
           ...prev,
-          '> Please specify a token (e.g. token report MON)'
+          '❌ Usage: token report <token> <amt> to <dest>'
         ])
         return
       }
-    
+
       try {
-        const res = await fetch(`${baseApiUrl}/token-report`, {
+        // 2) Fetch 7-day prices
+        const res  = await fetch(`${baseApiUrl}/token-report`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol })
+          body:    JSON.stringify({ symbol })
         })
-        const data = await res.json()
-    
-        if (data.success) {
-          const r = data.data
+        const json = await res.json()
+
+        if (json.success) {
+          const prices = json.data   // [{ date, price }, …]
+
+          // 3) Compute change & sentiment
+          const first = prices[0].price
+          const last  = prices[prices.length - 1].price
+          const change = last - first
+          const pct    = first ? (change / first) * 100 : 0
+          let sentiment = 'neutral'
+          if (pct > 5)      sentiment = 'bullish'
+          else if (pct < -5) sentiment = 'bearish'
+
+          // 4) Render
           setTerminalLines(prev => {
             const lines = prev.slice(0, -1)
             return [
               ...lines,
-              `📊 Token Report for ${symbol}\n- 7d Price Change: ${r.percentChange}%\n- Sentiment: ${r.sentiment}`
-            ]
+              `📊 Token Report for ${symbol} (${amount}→${dest}):`,
+              `- 7d Change:    ${pct.toFixed(2)}% (${first.toFixed(4)}→${last.toFixed(4)})`,
+              `- Sentiment:    ${sentiment}`,
+              'History:'
+            ].concat(
+              prices.map(p => `  ${p.date}: ${p.price}`)
+            )
           })
         } else {
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            `❌ ${data.error || 'Unknown error'}`
-          ])
+          throw new Error(json.error || 'Unknown error')
         }
-      } catch {
+      } catch (err) {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
-          '❌ Token report fetch failed.'
+          `❌ Token report error: ${err.message}`
         ])
       }        
 
-    } else if (cmd === 'best' && sub === 'price' && rest[0] === 'for') {
-      const token = rest[1]?.toUpperCase()
-      if (!token) {
+    } else if (cmd === 'best' && sub === 'price' && tokenArg === 'for') {
+      // ⬇ destructure the rest array
+      const symbol    = rest[0]?.toUpperCase()
+      const amount    = rest[1]
+      const toKeyword = rest[2]?.toLowerCase()
+      const dest      = rest[3]?.toUpperCase()
+    
+      // full syntax check
+      if (!symbol || !amount || toKeyword !== 'to' || !dest) {
         setTerminalLines(prev => [
           ...prev,
-          '❌ Please specify a token (e.g. best price for MON)'
+          '❌ Usage: best price for <token> <amt> to <dest>'
         ])
         return
       }
@@ -465,30 +496,43 @@ function App() {
         const res = await fetch(`${baseApiUrl}/best-price`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: token })
+          body: JSON.stringify({
+            symbol,
+            amount,
+            to:      dest,
+            sender:  address
+          })
         })
         const data = await res.json()
     
         if (data.success) {
+          const d = data.data
+          const unit = d.pricePerUnit
+          const total = unit * Number(amount)
+    
           setTerminalLines(prev => {
-            const lines = [...prev]
-            lines.pop()
-            return [...lines, `💱 Best Price for ${token}: $${data.price} (via ${data.source})`]
+            const lines = [...prev.slice(0, -1)]
+            lines.push(
+              `💱 Best Price for ${d.symbol} (${amount}→${d.to}):`,
+              `- Unit Price: $${unit.toFixed(6)}`,
+              `- Total:      $${total.toFixed(6)}`
+            )
+            return lines
           })
         } else {
           setTerminalLines(prev => {
-            const lines = [...prev]
-            lines.pop()
-            return [...lines, `❌ ${data.error}`]
+            const lines = [...prev.slice(0, -1)]
+            lines.push(`❌ ${data.error}`)
+            return lines
           })
         }
-      } catch (err) {
+      } catch {
         setTerminalLines(prev => {
-          const lines = [...prev]
-          lines.pop()
-          return [...lines, '❌ Failed to fetch best price.']
+          const lines = [...prev.slice(0, -1)]
+          lines.push('❌ Failed to fetch best price.')
+          return lines
         })
-      }
+      }    
 
     } else if (cmd === 'send' && tokenArg && rest[0] === 'to') {
         const amount = sub

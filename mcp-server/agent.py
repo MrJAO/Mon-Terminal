@@ -58,21 +58,20 @@ def _save_cooldowns(data):
 
 def print_help():
     return """Available Mon Terminal Commands:
-> help                         Show this help menu
-> clear                        Clear the terminal
-> analyze                      Analyze wallet and suggest testnet tasks
-> check balance <token>        View token balance for connected wallet
-> check pnl <token>            View actual PnL from recent token transactions
-> record stats                 Record your last PnL on-chain (24h cooldown)
-> achievements                 View your unlocked achievements
-> mint <achievement_name>      Mint a soulbound achievement NFT
-> best price for <token>       Compare DEX prices for a token
-> swap <from> <amount> to <to>    Quote a token swap (e.g. swap MON 1 to USDC)
-> confirm <from> <amount> to <to> Execute a quoted swap
-> show my nfts                 List owned NFTs (by value)
-> find nft <keyword>           Search NFTs by name
-> send <token> to <address>    Send token to address (bulk supported)
-> token report <token>         7-day price history, % change, sentiment
+> help                                      Show this help menu
+> clear                                     Clear the terminal
+> analyze                                   Analyze wallet and suggest testnet tasks
+> check balance <token>                     View token balance for connected wallet
+> check pnl <token> 1 to USDC               View actual PnL from recent token transactions
+> record stats                              Record your last PnL on-chain (24h cooldown)
+> achievements                              View your unlocked achievements
+> mint <achievement_name>                   Mint a soulbound achievement NFT
+> best price for <token> 1 to USDC          Compare DEX prices for a token
+> swap <from> <amount> to <to>              Quote a token swap (e.g. swap MON 1 to USDC)
+> confirm <from> <amount> to <to>           Execute a quoted swap
+> show my nfts                              List owned NFTs (by value)
+> send <amount> <token> to <address>        Send token to address (bulk supported)
+> token report <token> 1 to USDC            7-day price history, % change, sentiment
 """
 
 def simulate_clear():
@@ -119,31 +118,28 @@ def simulate_check_balance(token):
     except Exception as e:
         return f"Mon Terminal backend error: {str(e)}"
 
-def simulate_check_pnl(token):
+def simulate_check_pnl(token, amount, dest):
     try:
-        response = requests.post("https://mon-terminal.onrender.com/api/pnl", json={
+        payload = {
             "address": WALLET_ADDRESS,
-            "token": token
-        })
-        data = response.json()
-        if data.get("success") and data.get("pnl"):
-            entry = data["pnl"][0]
-            if "error" in entry:
-                return f"PnL Error ({token.upper()}): {entry['error']}"
-
+            "token": token.upper(),
+            "amount": str(amount),
+            "to": dest.upper()
+        }
+        resp = requests.post("https://mon-terminal.onrender.com/api/pnl", json=payload)
+        data = resp.json()
+        if data.get("success"):
+            e = data["data"]
             return (
-                f"PnL Report for {entry['symbol']}:\n"
-                f"- Average Buy Price: ${round(entry['averageBuyPrice'], 4)}\n"
-                f"- Current Price:     ${round(entry['currentPrice'], 4)}\n"
-                f"- Current Balance:   {round(entry['currentBalance'], 6)} {entry['symbol']}\n"
-                f"- Current Value:     ${round(entry['currentValue'], 2)}\n"
-                f"- Total Cost:        ${round(entry['totalCost'], 2)}\n"
-                f"- PnL:               ${round(entry['pnl'], 2)}"
+                f"📈 PnL Report for {e['symbol']} ({amount} → {e['to']}):\n"
+                f"- Quoted Amount: {e['quotedAmount']} {e['to']}\n"
+                f"- Cost for {amount}: ${e['costForAmount']:.6f}\n"
+                f"- PnL: ${e['pnlForAmount']:.6f} ({e['pnlPercentage']:.2f}%)"
             )
         else:
-            return f"Failed to fetch PnL: {data.get('error', 'Unknown error')}"
-    except Exception as e:
-        return f"Mon Terminal backend error: {str(e)}"
+            return f"❌ PnL error: {data.get('error')}"
+    except Exception as ex:
+        return f"❌ PnL fetch error: {str(ex)}"
 
 def simulate_record_stats():
     try:
@@ -194,39 +190,57 @@ def simulate_mint(ach_id):
     except Exception as e:
         return f"❌ Mint error: {str(e)}"
 
-def simulate_token_report(token):
+def simulate_token_report(token, amount, dest):
     try:
-        response = requests.post(
+        resp = requests.post(
             "https://mon-terminal.onrender.com/api/token-report",
-            json={"symbol": token}
+            json={"symbol": token.upper()}
         )
-        data = response.json()
+        data = resp.json()
         if data.get("success"):
-            # updated key for report data
-            info = data.get("data", {})
+            prices = data.get("data", [])
+            if not prices:
+                return f"❌ No price history for {token}" 
+            first = prices[0]['price']
+            last  = prices[-1]['price']
+            change = last - first
+            pct = (change / first) * 100 if first else 0
+            sentiment = 'bullish' if pct>5 else ('bearish' if pct < -5 else 'neutral')
+            lines = [
+                f"📊 Token Report for {token.upper()}:",
+                f"- 7d Change: {pct:.2f}% ({first:.4f}→{last:.4f})", 
+                f"- Sentiment: {sentiment}",
+                "History:" ]
+            for p in prices:
+                lines.append(f"  {p['date']}: {p['price']}")
+            return "\n".join(lines)
+        else:
+            return f"❌ Report error: {data.get('error')}"
+    except Exception as ex:
+        return f"❌ Report fetch error: {str(ex)}"
+
+def simulate_best_price(token, amount, dest):
+    try:
+        payload = {
+            "symbol": token.upper(),
+            "to": dest.upper(),
+            "sender": WALLET_ADDRESS
+        }
+        resp = requests.post("https://mon-terminal.onrender.com/api/best-price", json=payload)
+        data = resp.json()
+        if data.get("success"):
+            d = data["data"]
+            per = d['pricePerUnit']
+            total = per * float(amount)
             return (
-                f"📊 Token Report for {token.upper()}:\n"
-                f"- 7d Price Change: {info.get('percentChange', '0.00')}%\n"
-                f"- Sentiment:       {info.get('sentiment', 'neutral')}"
+                f"💱 Best Price for {d['symbol']} ({amount} → {d['to']}):\n"
+                f"- Unit Price: ${per:.6f}\n"
+                f"- Total:      ${total:.6f}"
             )
         else:
-            return f"❌ Token report error: {data.get('error', 'Unknown error')}"
-    except Exception as e:
-        return f"❌ Token report error: {str(e)}"
-
-def simulate_best_price(token):
-    try:
-        response = requests.post("https://mon-terminal.onrender.com/api/best-price", json={
-            "symbol": token
-        })
-        data = response.json()
-
-        if data.get("success"):
-            return f"💱 Best Price for {token.upper()}: ${data['price']} (via {data['source']})"
-        else:
-            return f"❌ {data.get('error', 'Unknown error')}"
-    except Exception as e:
-        return f"❌ Best price fetch error: {str(e)}"
+            return f"❌ Best price error: {data.get('error')}"
+    except Exception as ex:
+        return f"❌ Best price fetch error: {str(ex)}"
 
 def fetch_nfts(identifier='all'):
     """
@@ -332,15 +346,13 @@ def main():
     elif command == "analyze" and len(args) > 1:
         print(analyze_wallet(args[1]))
 
-    elif command == "check" and len(args) > 1:
-        sub_cmd = args[1]
-        if sub_cmd == "balance" and len(args) > 2:
-            print(simulate_check_balance(args[2]))
-        elif sub_cmd == "pnl":
-            if len(args) > 2:
-                print(simulate_check_pnl(args[2]))
-            else:
-                print("❌ Please specify a token for PnL check (e.g., check pnl MON)")
+    elif command == 'check' and len(args) > 1:
+        if args[1] == 'balance' and len(args) > 2:
+             print(simulate_check_balance(args[2]))
+        elif args[1] == 'pnl' and len(args) >= 6 and args[4].lower() == 'to':
+             print(simulate_check_pnl(args[2], args[3], args[5]))
+        else:
+             print("❌ Usage: check pnl <token> <amt> to <dest>")
 
     elif command == "record" and len(args) > 1 and args[1] == "stats":
         print(simulate_record_stats())
@@ -351,14 +363,18 @@ def main():
     elif command == "mint" and len(args) > 1:
         print(simulate_mint(args[1]))
 
-    elif command == "best" and len(args) > 2 and args[1] == "price" and args[2] == "for":
-        token = args[3] if len(args) > 3 else "?"
-        print(simulate_best_price(token))
+    elif command == 'best' and len(args) > 2 and args[1] == 'price' and args[2] == 'for':
+        if len(args) >= 7 and args[5].lower() == 'to':
+             print(simulate_best_price(args[3], args[4], args[6]))
+        else:
+             print("❌ Usage: best price for <token> <amt> to <dest>")
 
     # ── Token Report ──
-    elif command == "token" and len(args) > 2 and args[1].lower() == "report":
-        print(simulate_token_report(args[2]))
-        return
+    elif command == 'token' and len(args) > 2 and args[1].lower() == 'report':
+        if len(args) >= 6 and args[4].lower() == 'to':
+             print(simulate_token_report(args[2], args[3], args[5]))
+        else:
+             print("❌ Usage: token report <token> <amt> to <dest>")
 
     # ── Send / Transfer ──
     elif command == "send" and len(args) > 3 and args[2].lower() == "to":
