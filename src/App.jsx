@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract, usePublicClient } from 'wagmi'
 import { Typewriter } from 'react-simple-typewriter'
 import TOKEN_LIST from './constants/tokenList'
 import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
@@ -71,6 +71,7 @@ function App() {
   const { disconnect } = useDisconnect()
   const { writeContractAsync } = useWriteContract()
   const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
 
   const [hasTyped, setHasTyped] = useState(false)
   const [terminalLines, setTerminalLines] = useState([])
@@ -504,40 +505,37 @@ function App() {
     
     // ── Confirm Transfer ──
     else if (cmd === 'confirm' && sub === 'transfer') {
-      if (!pendingSend) {
-        setTerminalLines(prev => [
-          ...prev.slice(0, -1),
-          '❌ No pending transfer. First use: send <amt> <token> to <address>'
-        ])
-        return
-      }
-
+      if (!pendingSend) return
+    
       const { amount, token, to } = pendingSend
-      setTerminalLines(prev => [
-        ...prev.slice(0, -1),
-        '> Executing transfer…'
-      ])
-
+      setTerminalLines(prev => [...prev.slice(0, -1), '> Executing transfer…'])
+    
       try {
         let txHash
         if (token === 'MON') {
-          // convert decimal MON string to Wei BigInt
           const value = BigInt(Math.floor(Number(amount) * 1e18))
           txHash = await walletClient.sendTransaction({ to, value })
         } else {
           const tokenAddress = await resolveTokenAddress(token)
           if (!tokenAddress) throw new Error(`Unknown token ${token}`)
-          // fetch decimals, then convert
-          const decimals = await new ethers.Contract(tokenAddress, erc20Abi, walletClient).decimals()
-          const amt = BigInt(Math.floor(Number(amount) * 10 ** decimals))
+    
+          // ←—— this is the change:
+          const decimals = await publicClient.readContract({
+            abi:          erc20Abi,
+            address:      tokenAddress,
+            functionName: 'decimals',
+            args:         []
+          })
+    
+          const amt = BigInt(Math.floor(Number(amount) * 10 ** Number(decimals)))
           txHash = await writeContractAsync({
-            abi: erc20Abi,
-            address: tokenAddress,
+            abi:          erc20Abi,
+            address:      tokenAddress,
             functionName: 'transfer',
-            args: [to, amt]
+            args:         [to, amt]
           })
         }
-
+    
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
           `> ✅ Sent ${amount} ${token}. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
@@ -550,7 +548,7 @@ function App() {
       } finally {
         setPendingSend(null)
       }
-    }
+    }    
     
       // ── Swap Quote ──
       else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
