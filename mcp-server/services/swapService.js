@@ -1,7 +1,5 @@
 // mcp-server/services/swapService.js
 import fetch from 'node-fetch'
-import { ethers } from 'ethers'
-import TOKEN_LIST from '../../src/constants/tokenList.js'
 
 const {
   MONORAIL_API_URL = 'https://testnet-pathfinder-v2.monorail.xyz',
@@ -16,7 +14,7 @@ const {
  * @param {string} to     - destination token address
  * @param {string} amount - amount in wei/base units
  * @param {string} sender - sender address
- * @returns {Promise<object>} - parsed JSON quote response with guaranteed `quote.output_formatted`
+ * @returns {Promise<object>} - object with a `quote` field containing raw Monorail data
  */
 export async function getQuote(from, to, amount, sender) {
   const url = new URL(`${MONORAIL_API_URL}/v1/quote`)
@@ -46,14 +44,8 @@ export async function getQuote(from, to, amount, sender) {
     throw new Error('Malformed quote response from Monorail')
   }
 
-  // 4) Compute & inject formatted output
-  const toMeta       = TOKEN_LIST.find(t => t.address.toLowerCase() === to.toLowerCase())
-  const destDecimals = toMeta?.decimals ?? 18
-  quote.output_formatted = ethers.formatUnits(quote.output, destDecimals)
-
-  // 5) Ensure returned shape always has data.quote
-  data.quote = quote
-  return data
+  // 4) Return only the raw quote object; formatting is handled by the callers
+  return { quote }
 }
 
 /**
