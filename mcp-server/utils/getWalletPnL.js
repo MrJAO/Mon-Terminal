@@ -10,7 +10,7 @@ const DECIMALS_CACHE = {
   sMON: 18, aprMON: 18, gMON: 18
 }
 
-// Zero address used for quote calls when sender is not relevant
+// Zero address used when sender is not relevant for quotes
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 /**
@@ -34,18 +34,17 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
   }
 
   try {
-    // Ensure valid checksum address
     const checksummedAddress = ethers.getAddress(address)
     const decimals = DECIMALS_CACHE[token.symbol] || 18
 
     // 1) Calculate average buy price per unit from recent transfers
-    let totalCost = 0
+    let totalCost   = 0
     let totalAmount = 0
 
     if (token.address !== 'native') {
       const transfers = await getRecentTokenTransfers(checksummedAddress, token.address)
       for (const tx of transfers) {
-        const amt = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
+        const amt   = parseFloat(ethers.formatUnits(tx.rawContract.value, decimals))
         const price = await getPriceFromMonorail(token.address, toToken.address)
         if (!price) continue
         totalAmount += amt
@@ -55,10 +54,21 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
 
     const averageBuyPrice = totalAmount > 0 ? totalCost / totalAmount : 0
 
-    // 2) Quote the requested amount via Monorail
+    // 2) Attempt to quote the requested amount
     const amountUnits = ethers.parseUnits(amountRequested.toString(), decimals).toString()
-    const quoteData   = await getQuote(token.address, toToken.address, amountUnits, ZERO_ADDRESS)
-    const outAmount   = parseFloat(quoteData.quote.output_formatted)
+    let quoteData
+    try {
+      quoteData = await getQuote(token.address, toToken.address, amountUnits, ZERO_ADDRESS)
+    } catch (quoteErr) {
+      throw new Error(`Quote failed: ${quoteErr.message}`)
+    }
+
+    // Validate quote response
+    const outFormatted = quoteData?.quote?.output_formatted
+    if (typeof outFormatted !== 'string') {
+      throw new Error('Invalid quote response from Monorail')
+    }
+    const outAmount = parseFloat(outFormatted)
 
     // 3) Compute cost and PnL for the requested amount
     const costForAmount = averageBuyPrice * amountRequested
@@ -66,17 +76,17 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
     const pnlPercentage = costForAmount > 0 ? (pnlForAmount / costForAmount) * 100 : 0
 
     return [{
-      symbol:         token.symbol,
-      amount:         amountRequested,
-      to:             toToken.symbol,
-      averageBuyPrice:parseFloat(averageBuyPrice.toFixed(6)),
-      quotedAmount:   parseFloat(outAmount.toFixed(6)),
-      costForAmount:  parseFloat(costForAmount.toFixed(6)),
-      pnlForAmount:   parseFloat(pnlForAmount.toFixed(6)),
-      pnlPercentage:  parseFloat(pnlPercentage.toFixed(2))
+      symbol:          token.symbol,
+      amount:          amountRequested,
+      to:              toToken.symbol,
+      averageBuyPrice: parseFloat(averageBuyPrice.toFixed(6)),
+      quotedAmount:    parseFloat(outAmount.toFixed(6)),
+      costForAmount:   parseFloat(costForAmount.toFixed(6)),
+      pnlForAmount:    parseFloat(pnlForAmount.toFixed(6)),
+      pnlPercentage:   parseFloat(pnlPercentage.toFixed(2))
     }]
   } catch (err) {
-    console.warn(`[PnL Error] ${tokenSymbol}:`, err.message)
+    console.warn(`[PnL Error] ${tokenSymbol}: ${err.message}`)
     return [{ symbol: tokenSymbol, error: err.message }]
   }
 }
@@ -96,11 +106,10 @@ async function getRecentTokenTransfers(address, contract) {
       body: JSON.stringify(body)
     })
     const data = await res.json()
-    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
-    return (data.result?.transfers || []).filter(tx => {
-      const ts = new Date(tx.metadata.blockTimestamp).getTime()
-      return ts > threeDaysAgo
-    })
+    const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000
+    return (data.result?.transfers || []).filter(tx =>
+      new Date(tx.metadata.blockTimestamp).getTime() > cutoff
+    )
   } catch {
     return []
   }
@@ -108,12 +117,17 @@ async function getRecentTokenTransfers(address, contract) {
 
 // Helper: dynamic price fetch
 const PRICE_CACHE = {}
-async function getPriceFromMonorail(fromAddress, toAddress) {
-  const key = `${fromAddress}-${toAddress}`
+async function getPriceFromMonorail(fromAddr, toAddr) {
+  const key = `${fromAddr}-${toAddr}`
   if (PRICE_CACHE[key]) return PRICE_CACHE[key]
   try {
-    const data  = await getQuote(fromAddress, toAddress, ethers.parseUnits('1', DECIMALS_CACHE['USDC'] || 6).toString(), ZERO_ADDRESS)
-    const price = parseFloat(data.quote.output_formatted)
+    const quoteData = await getQuote(
+      fromAddr,
+      toAddr,
+      ethers.parseUnits('1', DECIMALS_CACHE['USDC'] || 6).toString(),
+      ZERO_ADDRESS
+    )
+    const price = parseFloat(quoteData?.quote?.output_formatted || '0')
     PRICE_CACHE[key] = price
     return price
   } catch {

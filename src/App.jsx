@@ -533,8 +533,8 @@ function App() {
           return lines
         })
       }    
-
-    } else if (cmd === 'send' && tokenArg && rest[0] === 'to') {
+    }
+      else if (cmd === 'send' && tokenArg && rest[0] === 'to') {
         const amount = sub
         const token  = tokenArg.toUpperCase()
         const to     = rest[1]
@@ -545,11 +545,18 @@ function App() {
           `> Ready to send ${amount} ${token} → ${to}`,
           `> Type: confirm transfer`
         ])
+       return
       }
     
     // ── Confirm Transfer ──
     else if (cmd === 'confirm' && sub === 'transfer') {
-      if (!pendingSend) return
+      if (!pendingSend) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          '❌ No pending transfer. First use: send <amt> <token> to <address>'
+        ])
+        return
+      }
     
       const { amount, token, to } = pendingSend
       setTerminalLines(prev => [...prev.slice(0, -1), '> Executing transfer…'])
@@ -592,15 +599,76 @@ function App() {
       } finally {
         setPendingSend(null)
       }
+      return
     }    
     
-      // ── Swap Quote ──
-      else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
-        // … your swap quote logic …
+    // ── Swap Quote ──
+    else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
+      const fromSymbol = sub.toUpperCase()
+      const amount     = tokenArg
+      const toSymbol   = rest[1]?.toUpperCase()
+
+      // find on-chain addresses in your TOKEN_LIST
+      const fromInfo = TOKEN_LIST.find(t => t.symbol === fromSymbol)
+      const toInfo   = TOKEN_LIST.find(t => t.symbol === toSymbol)
+
+      if (!fromInfo || !toInfo) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          '❌ Usage: swap <FROM> <AMOUNT> to <TO> (unknown token)'
+        ])
+        return
       }
+
+      const from = fromInfo.address
+      const to   = toInfo.address
+
+      // replace the “thinking” line
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`
+      ])
+
+      try {
+        const res = await fetch(`${baseApiUrl}/swap/quote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, to, amount, sender: address })
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          const q = data.quote
+          // stash for confirm
+          setLastSwapQuote({ from, to, amount, sender: address })
+
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            'Quote:',
+            `- You send:       ${q.input_formatted} ${fromSymbol}`,
+            `- You’ll receive: ${q.output_formatted} ${toSymbol}`,
+            `- Min receive:    ${q.min_output_formatted} ${toSymbol}`,
+            `- Price impact:   ${(q.compound_impact * 100).toFixed(2)}%`,
+            'Type: confirm'
+          ])
+        } else {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            `❌ ${data.error}`
+          ])
+        }
+      } catch (e) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          '❌ Swap quote failed.'
+        ])
+      }
+
+      return
+    }
     
       // ── Confirm Swap ──
-      else if (cmd === 'confirm') {
+      else if (cmd === 'confirm' && !sub) {
         if (!lastSwapQuote) {
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
