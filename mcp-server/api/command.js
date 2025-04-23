@@ -1,45 +1,40 @@
-// mcp-server/api/free-mints.js
+// api/command.js
 import express from 'express'
+import { exec } from 'child_process'
+import path from 'path'
 
 const router = express.Router()
 
-router.get('/', async (req, res) => {
-  const limit = parseInt(req.query.limit) || 10
+// Execute CLI agent commands via Python
+router.post('/', (req, res) => {
+  const input = req.body.input || req.body.command
 
-  try {
-    const collectionsRes = await fetch('https://api-mainnet.magiceden.dev/v2/collections')
-    const collections = await collectionsRes.json()
-    const freeMints = []
-
-    for (const col of collections.slice(0, 20)) {
-      const { symbol } = col
-      try {
-        const listingsRes = await fetch(`https://api-mainnet.magiceden.dev/v2/collections/${symbol}/listings?limit=20`)
-        const listings = await listingsRes.json()
-        const free = listings.filter(item => item.price === 0)
-
-        free.forEach(nft => {
-          if (freeMints.length < limit) {
-            freeMints.push({
-              name: nft.title || nft.tokenMint,
-              image: nft.img || 'https://placehold.co/150x150?text=No+Image',
-              link: `https://magiceden.io/item-details/${nft.tokenMint}`
-            })
-          }
-        })
-
-        if (freeMints.length >= limit) break
-      } catch (listingErr) {
-        console.warn(`⚠️ Skipped collection ${symbol}:`, listingErr.message)
-        continue
-      }
-    }
-
-    res.json({ success: true, data: freeMints })
-  } catch (err) {
-    console.warn('⚠️ Failed to fetch free mints:', err.message)
-    res.status(500).json({ success: false, error: 'Fetch failed.' })
+  if (!input || typeof input !== 'string') {
+    return res.status(400).json({ success: false, error: 'Invalid input' })
   }
+
+  // Prevent shell injection by stripping dangerous characters
+  const sanitized = input.replace(/[^a-zA-Z0-9\s._:-]/g, '')
+  const agentPath = path.resolve('agent.py')
+
+  exec(
+    `python3 ${agentPath} ${sanitized}`,
+    { timeout: 5000, shell: true },
+    (err, stdout, stderr) => {
+      if (err) {
+        console.error('❌ Mon Terminal error:', stderr || err.message)
+        return res.json({ success: false, error: stderr || err.message })
+      }
+
+      const output = stdout.trim()
+      if (!output) {
+        return res.json({ success: false, error: 'No response from agent.py' })
+      }
+
+      // Return CLI output under "data" for consistency
+      return res.json({ success: true, data: output })
+    }
+  )
 })
 
 export default router
