@@ -22,12 +22,12 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
     const decimalsIn  = DECIMALS_CACHE[token.symbol]   || token.decimals || 18
     const decimalsOut = DECIMALS_CACHE[toToken.symbol] || toToken.decimals || 18
 
-    // 1) average buy price...
+    // 1) Calculate average buy price
     let totalCost = 0, totalAmount = 0
     if (token.address !== 'native') {
       const transfers = await getRecentTokenTransfers(checksummedAddress, token.address)
       for (const tx of transfers) {
-        const amt = parseFloat(ethers.formatUnits(tx.rawContract.value, decimalsIn))
+        const amt   = parseFloat(ethers.formatUnits(tx.rawContract.value, decimalsIn))
         const price = await getPriceFromMonorail(token.address, toToken.address)
         if (!price) continue
         totalAmount += amt
@@ -36,7 +36,7 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
     }
     const averageBuyPrice = totalAmount > 0 ? totalCost / totalAmount : 0
 
-    // 2) quote desired amount
+    // 2) Quote the requested amount
     const amountUnits = ethers.parseUnits(amountRequested.toString(), decimalsIn).toString()
     let quoteData
     try {
@@ -45,21 +45,18 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
       throw new Error(`Quote failed: ${err.message}`)
     }
 
-    // 3) extract output, falling back to raw `output`
+    // 3) Extract output_formatted, or fallback to raw `output`
     let formatted = quoteData?.quote?.output_formatted
     if (typeof formatted !== 'string') {
-      // if missing, look at `output` and format by decimalsOut
       const rawOut = quoteData?.quote?.output ?? quoteData?.output
-      formatted = typeof rawOut === 'string'
-        ? ethers.formatUnits(rawOut, decimalsOut)
-        : null
-    }
-    if (typeof formatted !== 'string') {
-      throw new Error('Invalid quote response from Monorail')
+      if (rawOut === undefined) {
+        throw new Error('Invalid quote response from Monorail')
+      }
+      formatted = ethers.formatUnits(rawOut, decimalsOut)
     }
     const outAmount = parseFloat(formatted)
 
-    // 4) compute PnL
+    // 4) Compute PnL
     const costForAmount = averageBuyPrice * amountRequested
     const pnlForAmount  = outAmount - costForAmount
     const pnlPercentage = costForAmount > 0 ? (pnlForAmount / costForAmount) * 100 : 0
@@ -79,7 +76,6 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
     return [{ symbol: tokenSymbol, error: err.message }]
   }
 }
-
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -116,7 +112,12 @@ async function getPriceFromMonorail(fromAddr, toAddr) {
       ethers.parseUnits('1', DECIMALS_CACHE['USDC'] || 6).toString(),
       ZERO_ADDRESS
     )
-    const str = quoteData?.quote?.output_formatted ?? quoteData.output_formatted
+    // same fallback logic here too
+    let str = quoteData?.quote?.output_formatted ?? quoteData.output_formatted
+    if (typeof str !== 'string') {
+      const raw = quoteData?.quote?.output ?? quoteData?.output
+      str = raw !== undefined ? ethers.formatUnits(raw, DECIMALS_CACHE['USDC'] || 6) : '0'
+    }
     const price = parseFloat(str) || 0
     PRICE_CACHE[key] = price
     return price
