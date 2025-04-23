@@ -72,6 +72,7 @@ def print_help():
 > show my nfts                              List owned NFTs (by value)
 > send <amount> <token> to <address>        Send token to address (bulk supported)
 > token report <token> 1 to USDC            7-day price history, % change, sentiment
+> show me free nft mint                     Show Magic Eden Free NFT minting 
 """
 
 def simulate_clear():
