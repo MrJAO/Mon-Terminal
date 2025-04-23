@@ -29,9 +29,8 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid destination symbol.' })
     }
 
-    // 3) Build raw amount for 1 unit of source token
-    const inDecimals = token.decimals || 18
-    const rawAmt = ethers.parseUnits('1', inDecimals).toString()
+    // 3) Build raw amount for 1 unit using 18 decimals
+    const rawAmt = ethers.parseUnits('1', 18).toString()
     console.log(`> best-price rawAmt: ${rawAmt}`)
 
     // 4) Fetch the quote
@@ -49,7 +48,7 @@ router.post('/', async (req, res) => {
     }
 
     // 6) Extract and log formatted output
-    const formatted = rawQuote.output_formatted ?? ethers.formatUnits(rawQuote.output, toToken.decimals || 6)
+    const formatted = rawQuote.output_formatted ?? ethers.formatUnits(rawQuote.output, 6)
     console.log(`> best-price raw output: ${rawQuote.output}, formatted: ${formatted}`)
 
     if (typeof formatted !== 'string') {

@@ -1,7 +1,6 @@
 // mcp-server/services/swapService.js
 import fetch from 'node-fetch'
 import { ethers } from 'ethers'
-import TOKEN_LIST from '../../src/constants/tokenList.js'
 
 const {
   MONORAIL_API_URL = 'https://testnet-pathfinder-v2.monorail.xyz',
@@ -46,10 +45,8 @@ export async function getQuote(from, to, amount, sender) {
     throw new Error('Malformed quote response from Monorail')
   }
 
-  // 4) Compute & inject formatted output using our TOKEN_LIST decimals
-  const toMeta       = TOKEN_LIST.find(t => t.address.toLowerCase() === to.toLowerCase())
-  const destDecimals = toMeta?.decimals ?? 18
-  quote.output_formatted = ethers.formatUnits(quote.output, destDecimals)
+  // 4) Use Monorail's own formatted output or fallback to standard 6-decimal formatting
+  quote.output_formatted = quote.output_formatted || ethers.formatUnits(quote.output, 6)
 
   // 5) Attach back so callers see `data.quote.output_formatted`
   data.quote = quote

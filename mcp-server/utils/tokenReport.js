@@ -20,12 +20,10 @@ export async function getTokenReport(symbol) {
   const toToken = TOKEN_LIST.find(t => t.symbol === USDC_SYMBOL)
   if (!toToken) throw new Error(`Destination token ${USDC_SYMBOL} not found.`)
 
-  // 2) Build a quote for exactly 1 unit
-  const inDecimals  = tokenMeta.decimals   || 18
-  const outDecimals = toToken.decimals     || 6
+  // 2) Quote exactly 1 unit using 18-decimal format
   let quoteData
   try {
-    const rawAmt = ethers.parseUnits('1', inDecimals).toString()
+    const rawAmt = ethers.parseUnits('1', 18).toString()
     console.log(`> tokenReport quoting rawAmt: ${rawAmt}`)
     quoteData = await getQuote(tokenMeta.address, toToken.address, rawAmt, ZERO_ADDRESS)
   } catch (err) {
@@ -37,8 +35,7 @@ export async function getTokenReport(symbol) {
   if (typeof rawQuote.output !== 'string') {
     throw new Error('Invalid quote response from Monorail')
   }
-  // Prefer injected formatted field, otherwise format locally
-  const formatted = rawQuote.output_formatted ?? ethers.formatUnits(rawQuote.output, outDecimals)
+  const formatted = rawQuote.output_formatted ?? ethers.formatUnits(rawQuote.output, 6)
   console.log(`> tokenReport raw output: ${rawQuote.output}, formatted: ${formatted}`)
 
   const price = parseFloat(formatted)

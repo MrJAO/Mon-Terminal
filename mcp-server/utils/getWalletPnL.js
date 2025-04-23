@@ -16,25 +16,9 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
 
   try {
     const checksummed = ethers.getAddress(address)
-    const inDecimals  = token.decimals   || 18
-    const outDecimals = toToken.decimals || 18
 
-    // 1) Average buy price over recent ERC-20 transfers
-    let totalCost = 0, totalAmt = 0
-    if (token.address !== 'native') {
-      const transfers = await getRecentTokenTransfers(checksummed, token.address)
-      for (const tx of transfers) {
-        const amt   = parseFloat(ethers.formatUnits(tx.rawContract.value, inDecimals))
-        const price = await getPriceFromMonorail(token.address, toToken.address)
-        if (!price) continue
-        totalAmt  += amt
-        totalCost += amt * price
-      }
-    }
-    const avgBuyPrice = totalAmt > 0 ? totalCost / totalAmt : 0
-
-    // 2) Get a Monorail quote for the desired amount
-    const rawUnits = ethers.parseUnits(amountRequested.toString(), inDecimals).toString()
+    // 1) Get a Monorail quote for the desired amount (use 18 decimals universally)
+    const rawUnits = ethers.parseUnits(amountRequested.toString(), 18).toString()
     console.log('> PnL quoting rawUnits:', rawUnits)
     let quoteData
     try {
@@ -43,10 +27,13 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
       throw new Error(`Quote failed: ${err.message}`)
     }
 
-    // 3) Normalize the output
+    // 2) Normalize the output
     const rawQuote = quoteData.quote
     if (!rawQuote?.output_formatted) throw new Error('Invalid quote response from Monorail')
     const outAmt = parseFloat(rawQuote.output_formatted)
+
+    // 3) Fetch average price using 1 unit quoted from Monorail
+    const avgBuyPrice = await getPriceFromMonorail(token.address, toToken.address)
 
     // 4) Compute PnL
     const costForAmount = avgBuyPrice * amountRequested
@@ -70,45 +57,14 @@ export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, to
   }
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────
-
-async function getRecentTokenTransfers(address, contract) {
-  try {
-    const body = {
-      jsonrpc: '2.0', id: 1, method: 'alchemy_getAssetTransfers',
-      params: [{
-        fromBlock: '0x0',
-        toAddress: address,
-        contractAddresses: [contract],
-        category: ['erc20'],
-        withMetadata: true
-      }]
-    }
-    const res  = await fetch(process.env.ALCHEMY_TESTNET_RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    const js   = await res.json()
-    const cutoff = Date.now() - 3 * 24 * 60 * 60 * 1000
-    return (js.result?.transfers || []).filter(tx =>
-      new Date(tx.metadata.blockTimestamp).getTime() > cutoff
-    )
-  } catch {
-    return []
-  }
-}
+// ─── Helper: Quote Price from Monorail ─────────────────────────────────────
 
 const PRICE_CACHE = {}
 async function getPriceFromMonorail(fromAddr, toAddr) {
   const key = `${fromAddr}-${toAddr}`
   if (PRICE_CACHE[key]) return PRICE_CACHE[key]
   try {
-    // Look up 'from' token decimals
-    const fromMeta = TOKEN_LIST.find(t => t.address.toLowerCase() === fromAddr.toLowerCase())
-    const fromDecimals = fromMeta?.decimals ?? 18
-    // Quote exactly 1 unit of from-token
-    const rawAmt = ethers.parseUnits('1', fromDecimals).toString()
+    const rawAmt = ethers.parseUnits('1', 18).toString()
     const q = await getQuote(fromAddr, toAddr, rawAmt, ZERO_ADDRESS)
     const price = parseFloat(q.quote.output_formatted) || 0
     PRICE_CACHE[key] = price
