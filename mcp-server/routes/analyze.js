@@ -1,36 +1,33 @@
-import express from 'express'
-import dotenv from 'dotenv'
-import fetch from 'node-fetch'
-import cors from 'cors'
-import { tokenContracts, nftContracts } from '../helpers/analyzeContracts.js'
+import express from 'express';
+import dotenv from 'dotenv';
+import fetch from 'node-fetch';
+import cors from 'cors';
+import { tokenContracts, nftContracts } from '../helpers/analyzeContracts.js';
 
-dotenv.config()
+dotenv.config();
 
-const router = express.Router()
+const router = express.Router();
+// Enable CORS and JSON parsing
+router.use(cors());
+router.use(express.json());
 
-// Enable CORS and JSON parsing for this router
-router.use(cors())
-router.use(express.json())
-
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
-const BASE_URL = `https://monad-testnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
+const TRANSFERS_URL = `https://monad-testnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
+const NFT_URL       = `https://monad-testnet.g.alchemy.com/nft/v3/${ALCHEMY_API_KEY}`;
 
 function isValidAddress(addr) {
-  return /^0x[a-fA-F0-9]{40}$/.test(addr)
+  return /^0x[a-fA-F0-9]{40}$/.test(addr);
 }
 
-// Paginated transfer fetcher
+// Generic paginated transfer fetcher
 async function fetchAllTransfers(params) {
-  const transfers = []
-  let pageKey // start undefined
-  let tries = 0
+  const transfers = [];
+  let pageKey;
+  let tries = 0;
 
   do {
-    // Build RPC params, include pageKey only when defined
-    const rpcParams = { ...params }
-    if (pageKey) rpcParams.pageKey = pageKey
-
-    const res = await fetch(BASE_URL, {
+    const rpcParams = { ...params, ...(pageKey ? { pageKey } : {}) };
+    const response = await fetch(TRANSFERS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -39,112 +36,94 @@ async function fetchAllTransfers(params) {
         method: 'alchemy_getAssetTransfers',
         params: [rpcParams]
       })
-    })
+    });
 
-    if (!res.ok) throw new Error(`Alchemy error: ${res.status} ${await res.text()}`)
-    const json = await res.json()
-    if (json.error) throw new Error(json.error.message)
+    if (!response.ok) throw new Error(`Alchemy error: ${response.status} ${await response.text()}`);
+    const json = await response.json();
+    if (json.error) throw new Error(json.error.message);
 
-    transfers.push(...(json.result?.transfers || []))
-    pageKey = json.result?.pageKey
-    tries++
-  } while (pageKey && tries < 10)
+    transfers.push(...(json.result.transfers || []));
+    pageKey = json.result.pageKey;
+    tries++;
+  } while (pageKey && tries < 10);
 
-  return transfers
+  return transfers;
 }
 
-// Full transaction count
+// Count all transaction categories except unsupported ones
 async function getTransactionCount(address) {
   const transfers = await fetchAllTransfers({
-    fromAddress: address,
-    category: ['external', 'internal', 'erc20', 'erc721', 'erc1155'],
+    fromAddress:     address,
+    category:        ['external', 'erc20', 'erc721', 'erc1155'],
     excludeZeroValue: true,
-    withMetadata: false,
-    maxCount: '0x3e8'
-  })
-  return transfers.length
+    withMetadata:     false,
+    maxCount:         '0x3e8'
+  });
+  return transfers.length;
 }
 
-// Token interactions
+// Count interactions with a specific ERC-20 token
 async function getTokenInteractionCount(address, tokenAddress) {
   const transfers = await fetchAllTransfers({
     contractAddresses: [tokenAddress],
-    category: ['erc20'],
-    withMetadata: false,
-    maxCount: '0x3e8',
-    toAddress: address,
-    fromAddress: address
-  })
-  return transfers.length
+    category:          ['erc20'],
+    withMetadata:      false,
+    maxCount:          '0x3e8',
+    toAddress:         address,
+    fromAddress:       address
+  });
+  return transfers.length;
 }
 
-// Paginated NFT fetcher
-async function getNFTs(address) {
-  const all = []
-  let pageKey = null
-  let tries = 0
+// Fetch NFTs for given owner, filtering only known contracts
+async function getNFTs(owner) {
+  // Collect all NFT contract addresses from helpers
+  const contractAddresses = Object.values(nftContracts).map(v => typeof v === 'string' ? v : v.address);
+  const url = new URL(`${NFT_URL}/getNFTsForOwner`);
+  url.searchParams.set('owner', owner);
+  contractAddresses.forEach(addr => url.searchParams.append('contractAddresses[]', addr));
+  url.searchParams.set('withMetadata', 'false');
 
-  do {
-    const url = new URL(`${BASE_URL}/getNFTs/`)
-    url.searchParams.set('owner', address)
-    url.searchParams.set('withMetadata', 'false')
-    if (pageKey) url.searchParams.set('pageKey', pageKey)
-
-    const res = await fetch(url.toString())
-    if (!res.ok) throw new Error(`Alchemy NFT error: ${res.status} ${await res.text()}`)
-    const json = await res.json()
-    if (json.error) throw new Error(json.error.message)
-
-    const owned = json.ownedNfts || json.ownedNFTs || []
-    all.push(...owned)
-    pageKey = json.pageKey
-    tries++
-  } while (pageKey && tries < 10)
-
-  return all
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`Alchemy NFT error: ${response.status} ${await response.text()}`);
+  const json = await response.json();
+  return json.ownedNfts || [];
 }
 
 router.post('/', async (req, res) => {
   try {
-    const { address, command } = req.body
-
+    const { address, command } = req.body;
     if (command !== 'analyze' || !isValidAddress(address)) {
-      return res.status(400).json({ error: 'Invalid command or address' })
+      return res.status(400).json({ error: 'Invalid command or address' });
     }
 
-    const totalTxCount = await getTransactionCount(address)
-    let activityLevel = 'Low'
-    if (totalTxCount >= 5000) activityLevel = 'High'
-    else if (totalTxCount >= 1000) activityLevel = 'Intermediate'
-    else if (totalTxCount >= 200) activityLevel = 'Fair'
+    const totalTxCount = await getTransactionCount(address);
+    let activityLevel = 'Low';
+    if (totalTxCount >= 5000) activityLevel = 'High';
+    else if (totalTxCount >= 1000) activityLevel = 'Intermediate';
+    else if (totalTxCount >= 200) activityLevel = 'Fair';
 
-    const tokenStats = {}
+    const tokenStats = {};
     for (const token of tokenContracts) {
-      tokenStats[token.symbol] = await getTokenInteractionCount(address, token.address)
+      tokenStats[token.symbol] = await getTokenInteractionCount(address, token.address);
     }
 
-    const nfts = await getNFTs(address)
+    const nfts = await getNFTs(address);
     const nftHoldings = Object.entries(nftContracts).map(([label, data]) => {
-      const addr = typeof data === 'string' ? data : data.address
-      const threshold = typeof data === 'string' ? 1 : data.threshold || 1
-      const matchCount = nfts.filter(n => n.contract?.address?.toLowerCase() === addr.toLowerCase()).length
-      const status = matchCount >= threshold ? 'Confirm'
-                    : matchCount > 0 ? 'Incomplete'
-                    : 'Not Holding'
-      return { name: label, count: matchCount, status }
-    })
+      const addr = typeof data === 'string' ? data : data.address;
+      const threshold = typeof data === 'string' ? 1 : data.threshold || 1;
+      const count = nfts.filter(n => n.contract?.address?.toLowerCase() === addr.toLowerCase()).length;
+      const status = count >= threshold ? 'Confirm'
+                   : count > 0        ? 'Incomplete'
+                   :                      'Not Holding';
+      return { name: label, count, status };
+    });
 
-    return res.json({
-      totalTxCount,
-      activityLevel,
-      tokenStats,
-      nftHoldings
-    })
-
+    return res.json({ totalTxCount, activityLevel, tokenStats, nftHoldings });
   } catch (err) {
-    console.error('❌ Analyze error:', err)
-    return res.status(500).json({ error: err.message })
+    console.error('❌ Analyze error:', err);
+    return res.status(500).json({ error: err.message });
   }
-})
+});
 
-export default router
+export default router;
