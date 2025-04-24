@@ -74,7 +74,7 @@ export default function TerminalFooter() {
         </div>
 
         <div className="tf-btn" onClick={() => setShowFaq(true)}>
-          FAQs
+          FACs
         </div>
       </div>
     </>
