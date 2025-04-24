@@ -231,25 +231,32 @@ def simulate_token_report(token, amount, dest):
             json={"symbol": token.upper()}
         )
         data = resp.json()
+
         if data.get("success"):
-            prices = data.get("data", [])
+            report = data["data"]
+            prices = report.get("prices", [])
             if not prices:
-                return f"❌ No price history for {token}" 
+                return f"❌ No price history for {token}"
+
             first = prices[0]['price']
             last  = prices[-1]['price']
             change = last - first
             pct = (change / first) * 100 if first else 0
-            sentiment = 'bullish' if pct>5 else ('bearish' if pct < -5 else 'neutral')
+            sentiment = 'bullish' if pct > 5 else ('bearish' if pct < -5 else 'neutral')
+
             lines = [
                 f"📊 Token Report for {token.upper()}:",
-                f"- 7d Change: {pct:.2f}% ({first:.4f}→{last:.4f})", 
+                f"- 7d Change: {pct:.2f}% ({first:.4f}→{last:.4f})",
                 f"- Sentiment: {sentiment}",
-                "History:" ]
+                "History:"
+            ]
             for p in prices:
                 lines.append(f"  {p['date']}: {p['price']}")
+
             return "\n".join(lines)
         else:
             return f"❌ Report error: {data.get('error')}"
+
     except Exception as ex:
         return f"❌ Report fetch error: {str(ex)}"
 

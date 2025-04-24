@@ -1,75 +1,93 @@
 // utils/getWalletPnL.js
 import { ethers } from 'ethers'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { getQuote } from '../services/swapService.js'
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const DUMMY_PRICES = {
+  MON:   10,
+  USDC:  1,
+  USDT:  1,
+  DAK:   2.5,
+  YAKI:  0.0132,
+  CHOG:  0.1548,
+  WMON:  10,
+  WETH:  1755.99,
+  WBTC:  86550.41,
+  WSOL:  150.58,
+  BEAN:  2.3031,
+  shMON: 10,
+  MAD:   0.0967,
+  sMON:  10,
+  aprMON:10,
+  gMON:  10,
+}
 
 /**
- * Calculates PnL for a specific amount of token swapped to a destination token.
+ * @param {string} symbol
+ * @returns {number} price in USD-equivalent (via DUMMY_PRICES), or 0 if unknown
  */
-export async function getWalletPnL(address, tokenSymbol, amountRequested = 1, toSymbol = 'USDC') {
+function getDummyPrice(symbol) {
+  return DUMMY_PRICES[symbol.toUpperCase()] || 0
+}
+
+/**
+ * Calculates PnL for swapping `amountRequested` of `tokenSymbol` into `toSymbol`
+ * using static dummy prices.
+ *
+ * @param {string} address         — user wallet address (will be checksummed)
+ * @param {string} tokenSymbol     — e.g. 'MON', 'DAK'
+ * @param {number} amountRequested — how many tokens to swap
+ * @param {string} toSymbol        — destination token, default 'USDC'
+ */
+export async function getWalletPnL(
+  address,
+  tokenSymbol,
+  amountRequested = 1,
+  toSymbol = 'USDC'
+) {
   const token   = TOKEN_LIST.find(t => t.symbol.toUpperCase() === tokenSymbol.toUpperCase())
   const toToken = TOKEN_LIST.find(t => t.symbol.toUpperCase() === toSymbol.toUpperCase())
+
   if (!token)   return [{ symbol: tokenSymbol, error: 'Token not found in list.' }]
   if (!toToken) return [{ symbol: toSymbol,    error: 'Destination token not found.' }]
 
   try {
-    const checksummed = ethers.getAddress(address)
+    // validate address
+    ethers.getAddress(address)
 
-    // 1) Get a Monorail quote for the desired amount (use 18 decimals universally)
-    const rawUnits = ethers.parseUnits(amountRequested.toString(), 18).toString()
-    console.log('> PnL quoting rawUnits:', rawUnits)
-    let quoteData
-    try {
-      quoteData = await getQuote(token.address, toToken.address, rawUnits, ZERO_ADDRESS)
-    } catch (err) {
-      throw new Error(`Quote failed: ${err.message}`)
-    }
+    // lookup dummy prices
+    const priceFrom = getDummyPrice(token.symbol)
+    const priceTo   = getDummyPrice(toToken.symbol)
+    if (priceFrom === 0) throw new Error(`No dummy price for ${token.symbol}`)
+    if (priceTo   === 0) throw new Error(`No dummy price for ${toToken.symbol}`)
 
-    // 2) Normalize the output
-    const rawQuote = quoteData.quote
-    if (!rawQuote?.output_formatted) throw new Error('Invalid quote response from Monorail')
-    const outAmt = parseFloat(rawQuote.output_formatted)
+    // price of 1 unit of token in terms of toSymbol
+    const averageBuyPrice = priceFrom / priceTo
 
-    // 3) Fetch average price using 1 unit quoted from Monorail
-    const avgBuyPrice = await getPriceFromMonorail(token.address, toToken.address)
+    // how much toSymbol you'll receive for amountRequested
+    const quotedAmount = averageBuyPrice * amountRequested
 
-    // 4) Compute PnL
-    const costForAmount = avgBuyPrice * amountRequested
-    const pnlForAmount  = outAmt - costForAmount
-    const pnlPct        = costForAmount > 0 ? (pnlForAmount / costForAmount) * 100 : 0
+    // cost in USD (priceFrom × amount)
+    const costForAmount = priceFrom * amountRequested
+
+    // PnL = what you get back minus what you paid
+    const pnlForAmount  = quotedAmount - costForAmount
+    const pnlPct        = costForAmount > 0
+      ? (pnlForAmount / costForAmount) * 100
+      : 0
 
     return [{
       symbol:          token.symbol,
       amount:          amountRequested,
       to:              toToken.symbol,
-      averageBuyPrice: parseFloat(avgBuyPrice.toFixed(6)),
-      quotedAmount:    parseFloat(outAmt.toFixed(6)),
+      averageBuyPrice: parseFloat(averageBuyPrice.toFixed(6)),
+      quotedAmount:    parseFloat(quotedAmount.toFixed(6)),
       costForAmount:   parseFloat(costForAmount.toFixed(6)),
       pnlForAmount:    parseFloat(pnlForAmount.toFixed(6)),
-      pnlPercentage:   parseFloat(pnlPct.toFixed(2))
+      pnlPercentage:   parseFloat(pnlPct.toFixed(2)),
     }]
 
   } catch (err) {
     console.warn(`[PnL Error] ${tokenSymbol}: ${err.message}`)
     return [{ symbol: tokenSymbol, error: err.message }]
-  }
-}
-
-// ─── Helper: Quote Price from Monorail ─────────────────────────────────────
-
-const PRICE_CACHE = {}
-async function getPriceFromMonorail(fromAddr, toAddr) {
-  const key = `${fromAddr}-${toAddr}`
-  if (PRICE_CACHE[key]) return PRICE_CACHE[key]
-  try {
-    const rawAmt = ethers.parseUnits('1', 18).toString()
-    const q = await getQuote(fromAddr, toAddr, rawAmt, ZERO_ADDRESS)
-    const price = parseFloat(q.quote.output_formatted) || 0
-    PRICE_CACHE[key] = price
-    return price
-  } catch {
-    return 0
   }
 }

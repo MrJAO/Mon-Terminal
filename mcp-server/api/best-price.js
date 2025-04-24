@@ -1,12 +1,43 @@
 // api/best-price.js
 import express from 'express'
-import { ethers } from 'ethers'
 import TOKEN_LIST from '../../src/constants/tokenList.js'
-import { getQuote } from '../services/swapService.js'
 
 const router = express.Router()
 const ZERO = '0x0000000000000000000000000000000000000000'
 
+// ─── Dummy USD prices per token ──────────────────────────────────────────────
+const DUMMY_PRICES = {
+  MON:    10,
+  USDC:   1,
+  USDT:   1,
+  DAK:    2.5,
+  YAKI:   0.0132,
+  CHOG:   0.1548,
+  WMON:   10,
+  WETH:   1755.99,
+  WBTC:   86550.41,
+  WSOL:   150.58,
+  BEAN:   2.3031,
+  shMON:  10,
+  MAD:    0.0967,
+  sMON:   10,
+  aprMON: 10,
+  gMON:   10,
+}
+
+// ─── Available DEXs ───────────────────────────────────────────────────────────
+const DEXS = [
+  'Monorail',
+  'Ambient Finance',
+  'Crystal Exchange',
+  'iZumi Finance',
+  'zkSwap',
+]
+
+/**
+ * POST /api/best-price
+ * { symbol, to, sender? }
+ */
 router.post('/', async (req, res) => {
   try {
     // 1) Normalize inputs
@@ -29,38 +60,36 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid destination symbol.' })
     }
 
-    // 3) Build raw amount for 1 unit using 18 decimals
-    const rawAmt = ethers.parseUnits('1', 18).toString()
-    console.log(`> best-price rawAmt: ${rawAmt}`)
-
-    // 4) Fetch the quote
-    let quoteData
-    try {
-      quoteData = await getQuote(token.address, toToken.address, rawAmt, sender)
-    } catch (err) {
-      throw new Error(`Monorail quote failed: ${err.message}`)
+    // 3) Get base dummy price in USD
+    const basePriceFrom = DUMMY_PRICES[symbol]
+    const basePriceTo   = DUMMY_PRICES[toSymbol]
+    if (basePriceFrom == null) {
+      throw new Error(`No dummy price for ${symbol}`)
+    }
+    if (basePriceTo == null) {
+      throw new Error(`No dummy price for ${toSymbol}`)
     }
 
-    // 5) Normalize response shape
-    const rawQuote = quoteData.quote ?? quoteData
-    if (typeof rawQuote.output !== 'string') {
-      throw new Error('Malformed quote response from Monorail')
-    }
+    // 4) Simulate quotes on each DEX with ±5% random swing
+    //    (not strictly needed if we're only picking one, but left here for clarity)
+    const simulated = DEXS.map(dex => {
+      const swing = (Math.random() * 2 - 1) * 0.05  // ±5%
+      const price = parseFloat(((basePriceFrom / basePriceTo) * (1 + swing)).toFixed(6))
+      return { dex, price }
+    })
 
-    // 6) Extract and log formatted output
-    const formatted = rawQuote.output_formatted ?? ethers.formatUnits(rawQuote.output, 6)
-    console.log(`> best-price raw output: ${rawQuote.output}, formatted: ${formatted}`)
+    // 5) Pick one DEX at random to “be the best”
+    const choice = simulated[Math.floor(Math.random() * simulated.length)]
 
-    if (typeof formatted !== 'string') {
-      throw new Error('Malformed quote response from Monorail')
-    }
-
-    // 7) Respond with parsed number
-    const pricePerUnit = parseFloat(formatted)
+    // 6) Respond
     return res.json({
       success: true,
-      data: { symbol: token.symbol, to: toToken.symbol, pricePerUnit },
-      source: 'monorail-pathfinder'
+      data: {
+        symbol:        token.symbol,
+        to:            toToken.symbol,
+        pricePerUnit:  choice.price,
+        dex:           choice.dex,
+      }
     })
 
   } catch (err) {
