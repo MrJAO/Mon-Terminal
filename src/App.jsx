@@ -8,6 +8,7 @@ import { useWalletClient } from 'wagmi'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
+import './analyzeStyle.css'
 import './NFT.css';
 import { getWalletClient } from '@wagmi/core'
 import { ethers } from 'ethers'
@@ -384,20 +385,56 @@ function App() {
           const nftInfo = result.nftHoldings
           const nftSummary = `- NFTs: ${nftInfo.total} total (${nftInfo.verified} verified, ${nftInfo.unverified} unverified)`
     
-          const output = [
-            `Mon Terminal Report for Wallet ${address}`,
-            `- Activity Level: ${result.activityLevel}`,
-            `- Total Transactions: ${result.transactionCount}`,
-            nftSummary,
-            `- DEX Interactions (last 12 hours):\n${dexLines}`,
-            `Disclaimer: ${result.disclaimer}`
-          ].join('\n')
-    
+          const styledReport = (
+            <div className="analyze-container">
+              <div className="analyze-header">Mon Terminal Analysis</div>
+          
+              <div className="analyze-section">
+                <span className="analyze-label">Wallet</span>
+                <div className="break-all text-xs">{address}</div>
+              </div>
+          
+              <div className="analyze-section">
+                <span className="analyze-label">Total Transactions:</span> {result.totalTxCount}
+                <br />
+                <span className="analyze-label">Activity Level:</span> {result.activityLevel}
+              </div>
+          
+              <div className="analyze-section">
+                <span className="analyze-label">Token Contract Interactions:</span>
+                <ul className="analyze-list">
+                  {Object.entries(result.tokenStats).map(([symbol, count]) => (
+                    <li key={symbol}>{symbol}: {count}</li>
+                  ))}
+                </ul>
+              </div>
+          
+              <div className="analyze-section">
+                <span className="analyze-label">NFT Holdings:</span>
+                <ul className="analyze-list">
+                  {result.nftHoldings.map((nft, idx) => (
+                    <li key={idx}>
+                      {nft.name}
+                      <span className={`analyze-nft-status ${
+                        nft.status === 'Confirm' ? 'status-confirm' :
+                        nft.status === 'Incomplete' ? 'status-incomplete' :
+                        'status-not-holding'
+                      }`}>
+                        {nft.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )
+          
           setTerminalLines(prev => {
             const newLines = [...prev]
             if (newLines[newLines.length - 1] === '> Mon Terminal is thinking...') newLines.pop()
-            return [...newLines, output]
+            return [...newLines, styledReport]
           })
+          
         } else {
           setTerminalLines(prev => {
             const newLines = [...prev]

@@ -1,130 +1,142 @@
-// mon-terminal/mcp-server/routes/analyze.js
+// routes/analyze.js
+import express from 'express'
 import dotenv from 'dotenv'
+import fetch from 'node-fetch'
+import { tokenContracts, nftContracts } from '../helpers/analyzeContracts.js'
+
 dotenv.config()
 
-import express from 'express'
-import { ethers } from 'ethers'
-import { Alchemy, Network } from 'alchemy-sdk'
-import dexContracts from './dexContracts.js'
-
 const router = express.Router()
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
+const BASE_URL = `https://monad-testnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
 
-const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL)
+function isValidAddress(addr) {
+  return /^0x[a-fA-F0-9]{40}$/.test(addr)
+}
 
-const alchemy = new Alchemy({
-  apiKey: process.env.ALCHEMY_API_KEY,
-  network: Network.ETH_GOERLI,
-})
+// Paginated transfer fetcher
+async function fetchAllTransfers(params) {
+  const transfers = []
+  let pageKey = null
+  let tries = 0
+
+  do {
+    const res = await fetch(BASE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'alchemy_getAssetTransfers',
+        params: [{ ...params, pageKey }]
+      })
+    })
+
+    if (!res.ok) throw new Error(`Alchemy error: ${res.status} ${await res.text()}`)
+    const json = await res.json()
+    if (json.error) throw new Error(json.error.message)
+
+    transfers.push(...(json.result?.transfers || []))
+    pageKey = json.result?.pageKey || null
+
+    tries++
+  } while (pageKey && tries < 10)
+
+  return transfers
+}
+
+// Full transaction count
+async function getTransactionCount(address) {
+  const transfers = await fetchAllTransfers({
+    fromAddress: address,
+    category: ['external', 'internal', 'erc20', 'erc721', 'erc1155'],
+    excludeZeroValue: true,
+    withMetadata: false,
+    maxCount: '0x3e8'
+  })
+  return transfers.length
+}
+
+// Token interactions (from OR to address)
+async function getTokenInteractionCount(address, tokenAddress) {
+  const transfers = await fetchAllTransfers({
+    contractAddresses: [tokenAddress],
+    category: ['erc20'],
+    withMetadata: false,
+    maxCount: '0x3e8',
+    toAddress: address,
+    fromAddress: address
+  })
+  return transfers.length
+}
+
+// Paginated NFT fetcher
+async function getNFTs(address) {
+  const all = []
+  let pageKey = null
+  let tries = 0
+
+  do {
+    const url = new URL(`${BASE_URL}/getNFTs/`)
+    url.searchParams.set('owner', address)
+    url.searchParams.set('withMetadata', 'false')
+    if (pageKey) url.searchParams.set('pageKey', pageKey)
+
+    const res = await fetch(url.toString())
+    if (!res.ok) throw new Error(`Alchemy NFT error: ${res.status} ${await res.text()}`)
+    const json = await res.json()
+    if (json.error) throw new Error(json.error.message)
+
+    const owned = json.ownedNfts || json.ownedNFTs || []
+    all.push(...owned)
+    pageKey = json.pageKey
+    tries++
+  } while (pageKey && tries < 10)
+
+  return all
+}
 
 router.post('/', async (req, res) => {
-  const body = req.body || {}
-  const address = typeof body.address === 'string' ? body.address.toLowerCase() : null
-  if (!address) {
-    return res.status(400).json({ success: false, message: 'Invalid or missing wallet address.' })
-  }
-
   try {
-    console.log(`🔍 Analyzing address: ${address}`)
+    const { address, command } = req.body
 
-    const totalTxCount = await provider.getTransactionCount(address)
-    console.log(`📊 Total transactions: ${totalTxCount}`)
-
-    const latestBlock = await provider.getBlockNumber()
-    const blocksPerDay = 7200
-    const scanDepth = blocksPerDay * 0.1
-    const fromBlock = Math.max(0, Math.floor(latestBlock - scanDepth))
-
-    console.log(`⛓️ Scanning blocks ${fromBlock}-${latestBlock} for DEX interactions`)
-
-    const recentDexCounts = {}
-    for (const name of Object.keys(dexContracts)) recentDexCounts[name] = 0
-
-    for (let blockNumber = fromBlock; blockNumber <= latestBlock; blockNumber++) {
-      if ((blockNumber - fromBlock) % 50 === 0) {
-        console.log(`🌀 Progress: at block ${blockNumber}`)
-      }
-
-      let block
-      try {
-        block = await provider.getBlock(blockNumber, true)
-      } catch (err) {
-        console.warn(`⚠️ Failed to fetch block ${blockNumber}: ${err.message}`)
-        continue
-      }
-
-      if (!block || !block.transactions || block.transactions.length === 0) {
-        console.warn(`⚠️ Block ${blockNumber} has no transactions or could not be fetched.`)
-        continue
-      }
-
-      for (const tx of block.transactions) {
-        if ((tx.from?.toLowerCase() === address || tx.to?.toLowerCase() === address) && tx.data) {
-          const methodId = tx.data.slice(0, 10)
-          console.log(`🔎 TX ${tx.hash} uses methodId: ${methodId}`)
-
-          let matched = false
-          for (const [dexName, dexInfo] of Object.entries(dexContracts)) {
-            const expectedMethodId = dexInfo.methodId?.toLowerCase()
-            const expectedAddress = dexInfo.address?.toLowerCase()
-            const txTo = tx.to?.toLowerCase()
-
-            const isMethodMatch = methodId === expectedMethodId
-            const isToAddressMatch = txTo === expectedAddress
-
-            if (isMethodMatch || isToAddressMatch) {
-              recentDexCounts[dexName]++
-              matched = true
-              console.log(`✅ Matched ${dexName} at block ${blockNumber}`)
-              break
-            }
-          }
-
-          if (!matched) {
-            console.warn(`❌ No DEX match for methodId ${methodId} in tx ${tx.hash}`)
-          }
-        }
-      }
+    if (command !== 'analyze' || !isValidAddress(address)) {
+      return res.status(400).json({ error: 'Invalid command or address' })
     }
 
-    let nftHoldings = { total: 0, verified: 0, unverified: 0 }
-    try {
-      console.log(`🎨 Fetching NFTs via Alchemy`)
-      const nftResponse = await alchemy.nft.getNftsForOwner(address)
-      const allNfts = nftResponse.ownedNfts || []
-      const verifiedContracts = [ '0xabc123...', '0xdef456...' ]
-      const verified = allNfts.filter(n =>
-        verifiedContracts.includes(n.contract.address.toLowerCase())
-      ).length
-      nftHoldings = { total: allNfts.length, verified, unverified: allNfts.length - verified }
-    } catch {
-      console.warn('⚠️ Alchemy NFT fetch failed; using simulated data')
-    }
-
-    let activityLevel
-    if (totalTxCount >= 5000)      activityLevel = 'High'
+    const totalTxCount = await getTransactionCount(address)
+    let activityLevel = 'Low'
+    if (totalTxCount >= 5000) activityLevel = 'High'
     else if (totalTxCount >= 1000) activityLevel = 'Intermediate'
-    else if (totalTxCount >= 200)  activityLevel = 'Fair'
-    else                            activityLevel = 'Low'
+    else if (totalTxCount >= 200) activityLevel = 'Fair'
 
-    console.log(`🔔 Activity level: ${activityLevel}`)
+    const tokenStats = {}
+    for (const token of tokenContracts) {
+      tokenStats[token.symbol] = await getTokenInteractionCount(address, token.address)
+    }
+
+    const nfts = await getNFTs(address)
+
+    const nftHoldings = Object.entries(nftContracts).map(([label, data]) => {
+      const addr = typeof data === 'string' ? data : data.address
+      const threshold = typeof data === 'string' ? 1 : data.threshold || 1
+      const matchCount = nfts.filter(n => n.contract?.address?.toLowerCase() === addr.toLowerCase()).length
+      const status = matchCount >= threshold ? 'Confirm'
+                    : matchCount > 0 ? 'Incomplete'
+                    : 'Not Holding'
+      return { name: label, count: matchCount, status }
+    })
 
     return res.json({
-      success: true,
-      data: {
-        address,
-        transactionCount: totalTxCount,
-        nftHoldings,
-        activityLevel,
-        disclaimer: 'Activity levels are purely for speculation only.',
-        dexSummary: {
-          label: "You've interacted with these DEXs for the past 12 hours:",
-          interactions: recentDexCounts
-        }
-      }
+      totalTxCount,
+      activityLevel,
+      tokenStats,
+      nftHoldings
     })
-  } catch (error) {
-    console.error('❌ Analyze error:', error)
-    return res.status(500).json({ success: false, message: 'Internal server error.' })
+
+  } catch (err) {
+    console.error('❌ Analyze error:', err)
+    return res.status(500).json({ error: err.message })
   }
 })
 

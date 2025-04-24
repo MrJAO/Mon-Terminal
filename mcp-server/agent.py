@@ -60,7 +60,7 @@ def print_help():
     return """Available Mon Terminal Commands:
 > help                                      Show this help menu
 > clear                                     Clear the terminal
-> analyze                                   Analyze wallet and suggest testnet tasks
+> analyze                                   Analyze wallet Tokens and NFTs interactions 
 > check balance <token>                     View token balance for connected wallet
 > check pnl <token> 1 to USDC               View actual PnL from recent token transactions
 > record stats                              Record your last PnL on-chain (24h cooldown)
@@ -79,27 +79,28 @@ def simulate_clear():
 
 def analyze_wallet(address):
     try:
-        response = requests.post("https://mon-terminal.onrender.com/api/analyze", json={"address": address})
+        response = requests.post("https://mon-terminal.onrender.com/api/analyze", json={"address": address, "command": "analyze"})
         data = response.json()
 
-        if data.get("success"):
-            result = data["data"]
-            dex_interactions = result['dexSummary']['interactions']
-            dex_lines = "\n".join([f"  -> {dex}: {count} interactions" for dex, count in dex_interactions.items()])
+        if 'totalTxCount' in data:
+            lines = [
+                f"Mon Terminal Report for Wallet {address}:",
+                f"- Total Transactions: {data['totalTxCount']}",
+                f"- Activity Level: {data['activityLevel']}",
+                f"- Token Interactions:"
+            ]
 
-            nft_info = result['nftHoldings']
-            nft_summary = (f"- NFTs: {nft_info['total']} total ({nft_info['verified']} verified, "
-                           f"{nft_info['unverified']} unverified)")
+            for symbol, count in data['tokenStats'].items():
+                lines.append(f"  • {symbol}: {count}")
 
-            return (f"Mon Terminal Report for Wallet {address}:\n"
-                    f"- Activity Level: {result['activityLevel']}\n"
-                    f"- Total Transactions: {result['transactionCount']}\n"
-                    f"{nft_summary}\n"
-                    f"- DEX Interactions (last 3 days):\n{dex_lines}\n"
-                    f"Disclaimer: {result['disclaimer']}")
+            lines.append(f"- NFT Holdings:")
+            for nft in data['nftHoldings']:
+                lines.append(f"  • {nft['name']}: {nft['status']} ({nft['count']} pcs)")
+
+            return "\n".join(lines)
 
         else:
-            return f"❌ Failed to analyze wallet: {data.get('message', 'Unknown error')}"
+            return f"❌ Failed to analyze wallet: {data.get('error', 'Unknown error')}"
 
     except Exception as e:
         return f"❌ Mon Terminal backend error: {str(e)}"

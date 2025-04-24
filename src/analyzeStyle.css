@@ -1,0 +1,71 @@
+/* analyzeStyle.css */
+
+.analyze-container {
+    background: linear-gradient(to bottom right, #1e1e2f, #2e003e);
+    border: 2px solid #7f00ff;
+    border-radius: 12px;
+    padding: 20px;
+    font-family: 'Press Start 2P', monospace;
+    color: #f5f5f5;
+    box-shadow: 0 0 20px #7f00ff;
+    margin: 20px auto;
+    max-width: 800px;
+  }
+  
+  .analyze-header {
+    font-size: 20px;
+    color: #00fff7;
+    text-shadow: 0 0 5px #00fff7;
+    margin-bottom: 12px;
+  }
+  
+  .analyze-section {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-left: 4px solid #00fff7;
+    padding: 10px 15px;
+    margin-bottom: 18px;
+    border-radius: 8px;
+  }
+  
+  .analyze-label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ff00a1;
+    margin-bottom: 6px;
+    display: block;
+  }
+  
+  .analyze-list {
+    list-style-type: square;
+    padding-left: 20px;
+    font-size: 12px;
+    color: #e0e0e0;
+  }
+  
+  .analyze-list li::marker {
+    color: #00fff7;
+  }
+  
+  .analyze-nft-status {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 8px;
+  }
+  
+  .status-confirm {
+    background-color: #00ff99;
+    color: #001f1f;
+  }
+  
+  .status-incomplete {
+    background-color: #ffcc00;
+    color: #331a00;
+  }
+  
+  .status-not-holding {
+    background-color: #ff0033;
+    color: #fff0f0;
+  }
+  
