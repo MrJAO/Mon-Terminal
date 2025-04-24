@@ -1,12 +1,17 @@
-// routes/analyze.js
 import express from 'express'
 import dotenv from 'dotenv'
 import fetch from 'node-fetch'
+import cors from 'cors'
 import { tokenContracts, nftContracts } from '../helpers/analyzeContracts.js'
 
 dotenv.config()
 
 const router = express.Router()
+
+// Enable CORS and JSON parsing for this router
+router.use(cors())
+router.use(express.json())
+
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY
 const BASE_URL = `https://monad-testnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
 
@@ -17,10 +22,14 @@ function isValidAddress(addr) {
 // Paginated transfer fetcher
 async function fetchAllTransfers(params) {
   const transfers = []
-  let pageKey = null
+  let pageKey // start undefined
   let tries = 0
 
   do {
+    // Build RPC params, include pageKey only when defined
+    const rpcParams = { ...params }
+    if (pageKey) rpcParams.pageKey = pageKey
+
     const res = await fetch(BASE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -28,7 +37,7 @@ async function fetchAllTransfers(params) {
         jsonrpc: '2.0',
         id: 1,
         method: 'alchemy_getAssetTransfers',
-        params: [{ ...params, pageKey }]
+        params: [rpcParams]
       })
     })
 
@@ -37,8 +46,7 @@ async function fetchAllTransfers(params) {
     if (json.error) throw new Error(json.error.message)
 
     transfers.push(...(json.result?.transfers || []))
-    pageKey = json.result?.pageKey || null
-
+    pageKey = json.result?.pageKey
     tries++
   } while (pageKey && tries < 10)
 
@@ -57,7 +65,7 @@ async function getTransactionCount(address) {
   return transfers.length
 }
 
-// Token interactions (from OR to address)
+// Token interactions
 async function getTokenInteractionCount(address, tokenAddress) {
   const transfers = await fetchAllTransfers({
     contractAddresses: [tokenAddress],
@@ -80,9 +88,7 @@ async function getNFTs(address) {
     const url = new URL(`${BASE_URL}/getNFTs/`)
     url.searchParams.set('owner', address)
     url.searchParams.set('withMetadata', 'false')
-    if (pageKey && typeof pageKey === 'string' && pageKey.trim() !== '') {
-      url.searchParams.set('pageKey', pageKey)
-    }    
+    if (pageKey) url.searchParams.set('pageKey', pageKey)
 
     const res = await fetch(url.toString())
     if (!res.ok) throw new Error(`Alchemy NFT error: ${res.status} ${await res.text()}`)
@@ -118,7 +124,6 @@ router.post('/', async (req, res) => {
     }
 
     const nfts = await getNFTs(address)
-
     const nftHoldings = Object.entries(nftContracts).map(([label, data]) => {
       const addr = typeof data === 'string' ? data : data.address
       const threshold = typeof data === 'string' ? 1 : data.threshold || 1
