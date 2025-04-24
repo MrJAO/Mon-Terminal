@@ -190,8 +190,27 @@ async function getAllTokenStats(address) {
   );
 }
 
-// 4) Fetch NFTs (unchanged)
-async function getNFTs(owner) { /* … */ }
+// fetch all NFTs for an owner, as before
+async function getNFTs(owner) {
+  const all = [];
+  let pageKey, tries = 0;
+
+  do {
+    const url = new URL(`${NFT_URL}/getNFTsForOwner`);
+    url.searchParams.set('owner', owner);
+    url.searchParams.set('pageSize', '100');
+    if (pageKey) url.searchParams.set('pageKey', pageKey);
+
+    const resp = await fetch(url.toString());
+    if (!resp.ok) throw new Error(`NFT API ${resp.status}`);
+    const json = await resp.json();
+    all.push(...(json.ownedNfts || []));
+    pageKey = json.pageKey;
+    tries++;
+  } while (pageKey && tries < 10);
+
+  return all;
+}
 
 // — ROUTES —
 
@@ -223,15 +242,17 @@ router.post('/token-stats', async (req, res) => {
   }
 });
 
-// ⚙️ 3️⃣ NFT Holdings (unchanged)
+// 3️⃣ NFT Holdings (unchanged)
 router.post('/nft-holdings', async (req, res) => {
   const { address } = req.body;
   if (!isValidAddress(address)) {
     return res.status(400).json({ success: false, message: 'Invalid address' });
   }
+
   try {
     const allNfts = await getNFTs(address.toLowerCase());
     let totalNFTCount = 0;
+
     const groupHoldings = Object.entries(nftGroups).map(([groupName, items]) => {
       const processed = items.map(({ name, address: addr, threshold }) => {
         const count = allNfts.filter(n =>
@@ -247,6 +268,7 @@ router.post('/nft-holdings', async (req, res) => {
       });
       return { groupName, items: processed };
     });
+
     return res.json({
       success: true,
       data: { totalNFTCount, groupHoldings }
