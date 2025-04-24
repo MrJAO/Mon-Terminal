@@ -79,29 +79,62 @@ def simulate_clear():
 
 def analyze_wallet(address):
     try:
-        response = requests.post("https://mon-terminal.onrender.com/api/analyze", json={"address": address, "command": "analyze"})
-        data = response.json()
+        # 1️⃣ Total transactions
+        tx_resp = requests.post(
+            "https://mon-terminal.onrender.com/api/analyze/tx-count",
+            json={"address": address}
+        )
+        tx_resp.raise_for_status()
+        total = tx_resp.json().get("totalTxCount", 0)
 
-        if 'totalTxCount' in data:
-            lines = [
-                f"Mon Terminal Report for Wallet {address}:",
-                f"- Total Transactions: {data['totalTxCount']}",
-                f"- Activity Level: {data['activityLevel']}",
-                f"- Token Interactions:"
-            ]
-
-            for symbol, count in data['tokenStats'].items():
-                lines.append(f"  • {symbol}: {count}")
-
-            lines.append(f"- NFT Holdings:")
-            for nft in data['nftHoldings']:
-                lines.append(f"  • {nft['name']}: {nft['status']} ({nft['count']} pcs)")
-
-            return "\n".join(lines)
-
+        # compute activity level
+        if total >= 5000:
+            activity = "High"
+        elif total >= 1000:
+            activity = "Intermediate"
+        elif total >= 200:
+            activity = "Fair"
         else:
-            return f"❌ Failed to analyze wallet: {data.get('error', 'Unknown error')}"
+            activity = "Low"
 
+        # 2️⃣ Token interactions
+        ts_resp = requests.post(
+            "https://mon-terminal.onrender.com/api/analyze/token-stats",
+            json={"address": address}
+        )
+        ts_resp.raise_for_status()
+        token_stats = ts_resp.json().get("tokenStats", {})
+
+        # 3️⃣ NFT holdings
+        nft_resp = requests.post(
+            "https://mon-terminal.onrender.com/api/analyze/nft-holdings",
+            json={"address": address}
+        )
+        nft_resp.raise_for_status()
+        nft_data = nft_resp.json().get("data", {})
+        total_nfts   = nft_data.get("totalNFTCount", 0)
+        group_holdings = nft_data.get("groupHoldings", [])
+
+        # build lines
+        lines = [
+            f"Mon Terminal Report for Wallet {address}:",
+            f"- Total Transactions: {total}",
+            f"- Activity Level:     {activity}",
+            "- Token Interactions:"
+        ]
+        for symbol, cnt in token_stats.items():
+            lines.append(f"  • {symbol}: {cnt}")
+
+        lines.append(f"- NFT Holdings: {total_nfts}")
+        for group in group_holdings:
+            lines.append(f"{group['groupName']}:")
+            for item in group["items"]:
+                lines.append(f"  • {item['name']}: {item['status']} ({item['count']} pcs)")
+
+        return "\n".join(lines)
+
+    except requests.HTTPError as e:
+        return f"❌ Failed to analyze wallet: HTTP {e.response.status_code}"
     except Exception as e:
         return f"❌ Mon Terminal backend error: {str(e)}"
 
