@@ -15,7 +15,7 @@
   box-shadow: 0 0 20px #7f00ff;
 }
 
-/* Make the header span both columns */
+/* Make the header span all columns */
 .analyze-header {
   grid-column: 1 / -1;
   font-size: 20px;
@@ -24,7 +24,7 @@
   margin-bottom: 12px;
 }
 
-/* Panel sections */
+/* Regular panels */
 .analyze-section {
   background-color: rgba(0, 0, 0, 0.4);
   border-left: 4px solid #00fff7;
@@ -32,7 +32,12 @@
   border-radius: 8px;
 }
 
-/* “No-panel” (Featured Testnet NFTs) spans full width and no box */
+/* Span-two helper for wider panels */
+.analyze-section.span-2 {
+  grid-column: span 2;
+}
+
+/* “No-panel” (Featured Testnet NFTs label) */
 .analyze-section.no-panel {
   grid-column: 1 / -1;
   background: transparent;
@@ -41,7 +46,7 @@
   margin-bottom: 12px;
 }
 
-/* Section subtitle */
+/* Section subtitles */
 .analyze-subheader {
   display: block;
   font-size: 16px;
@@ -71,34 +76,30 @@
   color: #00fff7;
 }
 
-/* Status pills */
+/* Status text styling */
 .analyze-nft-status {
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: bold;
-  margin-left: 8px;
-  text-shadow: 0 0 2px #000;
-  /* give it a little neon glow */
-  box-shadow: 0 0 4px currentColor, inset 0 0 2px currentColor;
+  padding: 0;           
+  border-radius: 0;     
+  font-size: inherit;  
+  font-weight: bold;    
 }
 
 /* Confirm = neon green */
 .status-confirm {
-  background-color: #00ff66;
-  color: #001f1f;
+  color: #00ff99;
+  text-shadow: 0 0 4px #00ff99, 0 0 8px #00ff99;
 }
 
 /* Incomplete = neon orange */
 .status-incomplete {
-  background-color: #ff9900;
-  color: #331a00;
+  color: #ffcc00;
+  text-shadow: 0 0 4px #ffcc00, 0 0 8px #ffcc00;
 }
 
 /* Not Holding = neon red */
 .status-not-holding {
-  background-color: #ff0033;
-  color: #fff0f0;
+  color: #ff0033;
+  text-shadow: 0 0 4px #ff0033, 0 0 8px #ff0033;
 }
 
 /* Responsive fallback */

@@ -395,14 +395,19 @@ function App() {
         // render
         const styledReport = (
           <div className="analyze-container">
+            {/* full-width header */}
             <div className="analyze-header">Mon Terminal Analysis</div>
-
+        
+            {/* ─── First panel: TXs, Activity & NFT count ─── */}
             <div className="analyze-section">
               <span className="analyze-label">Total Transactions:</span> {totalTxCount}
               <br />
               <span className="analyze-label">Activity Level:</span> {activityLevel}
+              <br />
+              <span className="analyze-label">NFT Holdings:</span> {totalNFTCount}
             </div>
-
+        
+            {/* ─── Token Interactions ─── */}
             <div className="analyze-section">
               <span className="analyze-label">Token Contract Interactions:</span>
               <ul className="analyze-list">
@@ -411,36 +416,60 @@ function App() {
                 ))}
               </ul>
             </div>
-
-            <div className="analyze-section">
-              <span className="analyze-label">NFT Holdings:</span> {totalNFTCount}
-            </div>
-
+        
+            {/* ─── Guaranteed Mainnet Mint (span two columns) ─── */}
             {groupHoldings
-              .filter(({ groupName }) => groupName !== 'Featured Testnet NFTs')
+              .filter(g => g.groupName === 'Guaranteed Mainnet Mint')
+              .map(({ groupName, items }) => (
+                <div key={groupName} className="analyze-section span-2">
+                  <span className="analyze-subheader">{groupName}</span>
+                  <ul className="analyze-list">
+                    {items.map(({ name, status }, i) => {
+                      const statusClass =
+                        status === 'Confirm'      ? 'status-confirm' :
+                        status === 'Incomplete'   ? 'status-incomplete' :
+                                                   'status-not-holding';
+                      return (
+                        <li key={i}>
+                          {name}:{' '}
+                          <span className={`analyze-nft-status ${statusClass}`}>
+                            {status}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+            ))}
+        
+            {/* ─── Other NFT groups ─── */}
+            {groupHoldings
+              .filter(({ groupName }) =>
+                groupName !== 'Featured Testnet NFTs' &&
+                groupName !== 'Guaranteed Mainnet Mint'
+              )
               .map(({ groupName, items }) => {
-                const isFeaturedHeader = groupName === 'Breath of Estova'
-
+                const isFeaturedHeader = groupName === 'Breath of Estova';
+        
                 return (
                   <React.Fragment key={groupName}>
                     {isFeaturedHeader && (
                       <div className="analyze-section no-panel">
-                        <span className="analyze-subheader">Featured Testnet NFTs</span>
+                        <span className="analyze-subheader">
+                          Featured Testnet NFTs
+                        </span>
                       </div>
                     )}
-
+        
                     {items.length > 0 && (
                       <div className="analyze-section">
                         <span className="analyze-subheader">{groupName}</span>
                         <ul className="analyze-list">
                           {items.map(({ name, status }, i) => {
                             const statusClass =
-                              status === 'Confirm'
-                                ? 'status-confirm'
-                                : status === 'Incomplete'
-                                ? 'status-incomplete'
-                                : 'status-not-holding'
-
+                              status === 'Confirm'      ? 'status-confirm' :
+                              status === 'Incomplete'   ? 'status-incomplete' :
+                                                         'status-not-holding';
                             return (
                               <li key={i}>
                                 {name}:{' '}
@@ -455,7 +484,7 @@ function App() {
                     )}
                   </React.Fragment>
                 )
-              })}
+              })}       
           </div>
         )
 
@@ -801,7 +830,11 @@ function App() {
             `❌ Unable to fetch NFTs: ${e.message}`
           ])
           setNftResults(null)
-        }        
+        }
+        
+      } else if (cmd === 'clear') {
+        setTerminalLines(['> Terminal is cleared.'])
+        return
 
       // ── Fallback Command ──
     } else {
