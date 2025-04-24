@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import cors from 'cors';
 import { tokenContracts } from '../helpers/analyzeContracts.js';
+import { ethers } from 'ethers';
 
 dotenv.config();
 
@@ -108,6 +109,8 @@ function isValidAddress(addr) {
   return /^0x[a-fA-F0-9]{40}$/.test(addr);
 }
 
+const provider = new ethers.JsonRpcProvider(process.env.MONAD_RPC_URL);
+
 // generic paginated transfer fetcher
 async function fetchAllTransfers(params) {
   const transfers = [];
@@ -189,17 +192,22 @@ async function getNFTs(owner) {
 
 // 1️⃣ Total Transactions
 router.post('/tx-count', async (req, res) => {
-  const { address } = req.body;
-  if (!isValidAddress(address)) {
-    return res.status(400).json({ success: false, message: 'Invalid address' });
-  }
-  try {
-    const totalTxCount = await getTransactionCount(address.toLowerCase());
-    return res.json({ success: true, totalTxCount });
-  } catch (e) {
-    return res.status(500).json({ success: false, message: e.message });
-  }
-});
+    const { address } = req.body;
+    if (!isValidAddress(address)) {
+      console.warn('⚠️  /tx-count called with invalid address:', address);
+      return res.status(400).json({ success:false, message:'Invalid address' });
+    }
+  
+    try {
+      console.log(`🔍  /tx-count for ${address}`);
+      const totalTxCount = await provider.getTransactionCount(address);
+      console.log(`✅  /tx-count result for ${address}:`, totalTxCount);
+      return res.json({ success:true, totalTxCount });
+    } catch (e) {
+      console.error('❌  Tx-count failed:', e);
+      return res.status(500).json({ success:false, message:`Tx-count failed: ${e.message}` });
+    }
+  });
 
 // 2️⃣ Token Contract Interactions
 router.post('/token-stats', async (req, res) => {

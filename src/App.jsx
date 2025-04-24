@@ -365,7 +365,6 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address })
         })
-        if (!txRes.ok) throw new Error(`Tx-count failed: ${txRes.status}`)
         const { totalTxCount } = await txRes.json()
 
         // compute activity level locally
@@ -381,18 +380,15 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address })
         })
-        if (!tokenRes.ok) throw new Error(`Token-stats failed: ${tokenRes.status}`)
-        const tokenData = await tokenRes.json()
-        const tokenStats = tokenData.tokenStats
+        const { tokenStats } = await tokenRes.json()
 
         // 3) NFTs
         setAnalyzeProgress('Loading NFTs…')
-        const nftRes = await fetch(`${baseApiUrl}/analyze/nft-holdings`, {
+        const nftRes  = await fetch(`${baseApiUrl}/analyze/nft-holdings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address })
         })
-        if (!nftRes.ok) throw new Error(`NFT-holdings failed: ${nftRes.status}`)
         const nftBody = await nftRes.json()
         const { totalNFTCount, groupHoldings } = nftBody.data
 
@@ -410,17 +406,9 @@ function App() {
             <div className="analyze-section">
               <span className="analyze-label">Token Contract Interactions:</span>
               <ul className="analyze-list">
-                {Array.isArray(tokenStats)
-                  ? tokenStats.map(({ symbol, address: addr, count }) => (
-                      <li key={symbol}>
-                        {symbol}{' '}
-                        <small className="text-[10px] text-purple-300">({addr})</small>: {count}
-                      </li>
-                    ))
-                  : Object.entries(tokenStats).map(([symbol, count]) => (
-                      <li key={symbol}>{symbol}: {count}</li>
-                    ))
-                }
+                {tokenStats.map(({ symbol, count }) => (
+                  <li key={symbol}>{symbol}: {count}</li>
+                ))}
               </ul>
             </div>
 
@@ -441,14 +429,12 @@ function App() {
           </div>
         )
 
-        // replace “thinking” with our report
         setTerminalLines(prev => {
           const lines = prev.filter(l => l !== '> Mon Terminal is thinking...')
           return [...lines, styledReport]
         })
 
-      } catch (err) {
-        console.error('Analyze error:', err)
+      } catch {
         setTerminalLines(prev => {
           const lines = prev.filter(l => l !== '> Mon Terminal is thinking...')
           return [...lines, '❌ Mon Terminal is not responding.']
@@ -456,7 +442,8 @@ function App() {
       } finally {
         setIsAnalyzing(false)
         setAnalyzeProgress('')
-      }            
+      }
+            
     
     // ── Token Report ──
     } else if (cmd === 'token' && sub === 'report') {
