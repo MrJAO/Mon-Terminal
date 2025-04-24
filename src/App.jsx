@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect, useBalance, useWriteContract, usePublicClient } from 'wagmi'
 import { Typewriter } from 'react-simple-typewriter'
 import TOKEN_LIST from './constants/tokenList'
@@ -416,33 +416,40 @@ function App() {
               <span className="analyze-label">NFT Holdings:</span> {totalNFTCount}
             </div>
 
-            {groupHoldings.map(({ groupName, items }) => {
-              // 1) Render “Featured Testnet NFTs” as header-only
-              if (groupName === 'Featured Testnet NFTs') {
-                return (
-                  <div key={groupName} className="analyze-section no-panel">
-                    <span className="analyze-subheader">{groupName}</span>
-                  </div>
-                );
-              }
-              // 2) Skip completely empty groups
-              if (items.length === 0) {
-                return null;
-              }
-              // 3) Render normal panels
-              return (
-                <div className="analyze-section" key={groupName}>
-                  <span className="analyze-subheader">{groupName}</span>
-                  <ul className="analyze-list">
-                    {items.map(({ name, status }, i) => (
-                      <li key={i}>
-                        {name}: {status}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
+            {groupHoldings
+              .filter(g => g.groupName !== 'Featured Testnet NFTs')
+              .map(({ groupName, items }) => (
+                <React.Fragment key={groupName}>
+                  {groupName === 'Breath of Estova' && (
+                    <div className="analyze-section no-panel">
+                      <span className="analyze-subheader">Featured Testnet NFTs</span>
+                    </div>
+                  )}
+
+                  {items.length > 0 && (
+                    <div className="analyze-section">
+                      <span className="analyze-subheader">{groupName}</span>
+                      <ul className="analyze-list">
+                        {items.map(({ name, status }, i) => {
+                          let statusClass = ''
+                          if (status === 'Confirm')      statusClass = 'status-confirm'
+                          else if (status === 'Incomplete') statusClass = 'status-incomplete'
+                          else                               statusClass = 'status-not-holding'
+
+                          return (
+                            <li key={i}>
+                              {name}:
+                              <span className={`analyze-nft-status ${statusClass}`}>
+                                {status}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
           </div>
         )
 

@@ -47,8 +47,6 @@ const nftGroups = {
     { name: "Sealuminati Testnetooor",            address: "0x4870e911b1986c6822a171cdf91806c3d44ce235", threshold: 10 }
   ],
 
-  "Featured Testnet NFTs": [],
-
   "Breath of Estova": [
     { name: "Legacy Egg",                         address: "0xa980f072bc06d67faec2b03a8ada0d6c9d0da9f8", threshold: 1 },
     { name: "Mystery Token",                      address: "0xff59f1e14c4f5522158a0cf029f94475ba469458", threshold: 1 }
