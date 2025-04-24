@@ -58,20 +58,19 @@ def _save_cooldowns(data):
 
 def print_help():
     return """Available Mon Terminal Commands:
-> help                                      Show this help menu
-> clear                                     Clear the terminal
-> analyze                                   Analyze wallet Tokens and NFTs interactions 
-> check balance <token>                     View token balance for connected wallet
-> check pnl <token> 1 to USDC               View actual PnL from recent token transactions
-> record stats                              Record your last PnL on-chain (24h cooldown)
-> achievements                              View your unlocked achievements
-> mint <achievement_name>                   Mint a soulbound achievement NFT
-> best price for <token> 1 to USDC          Compare DEX prices for a token
-> swap <from> <amount> to <to>              Quote a token swap (e.g. swap MON 1 to USDC)
-> confirm <from> <amount> to <to>            Execute a quoted swap
-> show my nfts                              List owned NFTs (by value)
-> send <amount> <token> to <address>        Send token to address (bulk supported)
-> token report <token> 1 to USDC            7-day price history, % change, sentiment
+> help                                          ------      Show command help menu
+> analyze                                       ------      Analyze wallet Token and NFT interactions 
+> check balance <token name>                    ------      View token balance for connected wallet
+> check pnl <token name> 1 to USDC              ------      View actual PnL from recent token transactions
+> record stats                                  ------      Record your last PnL on-chain (24h cooldown)
+> achievements                                  ------      View your unlocked achievements
+> mint <achievement_name>                       ------      Mint a soulbound achievement NFT
+> best price for <token name> 1 to USDC         ------      Compare DEX prices for a token
+> swap <token name> <amount> to <token name>    ------      Quote a token swap (e.g. swap MON 1 to USDC)
+> confirm <token name> <amount> to <token name> ------      Execute a quoted swap
+> show my nfts                                  ------      Show all your owned NFTs (with max limit)
+> send <amount> <token name> to <w-address>     ------      Send token to another wallet address
+> token report <token name> 1 to USDC           ------      7-day price history, % change, sentiment
 """
 
 def simulate_clear():

@@ -30,13 +30,22 @@ function getDummyPrice(symbol) {
 }
 
 /**
- * Calculates PnL for swapping `amountRequested` of `tokenSymbol` into `toSymbol`
- * using static dummy prices.
+ * @param {number} pct - max swing percentage (e.g. 0.05 for ±5%)
+ * @returns {number} random factor between 1 - pct and 1 + pct
+ */
+function randomFactor(pct) {
+  return 1 + (Math.random() * 2 * pct - pct)
+}
+
+/**
+ * Calculates a 3-day PnL history for swapping `amountRequested` of `tokenSymbol` into `toSymbol`
+ * using simulated dummy prices with small daily swings.
  *
  * @param {string} address         — user wallet address (will be checksummed)
  * @param {string} tokenSymbol     — e.g. 'MON', 'DAK'
  * @param {number} amountRequested — how many tokens to swap
  * @param {string} toSymbol        — destination token, default 'USDC'
+ * @returns {Promise<Array<{ date: string, symbol: string, amount: number, to: string, averageBuyPrice: number, quotedAmount: number, costForAmount: number, pnlForAmount: number, pnlPercentage: number }>>}
  */
 export async function getWalletPnL(
   address,
@@ -54,37 +63,46 @@ export async function getWalletPnL(
     // validate address
     ethers.getAddress(address)
 
-    // lookup dummy prices
-    const priceFrom = getDummyPrice(token.symbol)
-    const priceTo   = getDummyPrice(toToken.symbol)
-    if (priceFrom === 0) throw new Error(`No dummy price for ${token.symbol}`)
-    if (priceTo   === 0) throw new Error(`No dummy price for ${toToken.symbol}`)
+    // base dummy prices
+    const basePriceFrom = getDummyPrice(token.symbol)
+    const basePriceTo   = getDummyPrice(toToken.symbol)
+    if (basePriceFrom === 0) throw new Error(`No dummy price for ${token.symbol}`)
+    if (basePriceTo   === 0) throw new Error(`No dummy price for ${toToken.symbol}`)
 
-    // price of 1 unit of token in terms of toSymbol
-    const averageBuyPrice = priceFrom / priceTo
+    const days = 3
+    const oneDayMs = 24 * 60 * 60 * 1000
+    const now = Date.now()
+    const results = []
 
-    // how much toSymbol you'll receive for amountRequested
-    const quotedAmount = averageBuyPrice * amountRequested
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now - i * oneDayMs).toISOString().slice(0, 10)
 
-    // cost in USD (priceFrom × amount)
-    const costForAmount = priceFrom * amountRequested
+      // simulate daily swing ±5%
+      const priceFromSim = basePriceFrom * randomFactor(0.05)
+      const priceToSim   = basePriceTo   * randomFactor(0.05)
 
-    // PnL = what you get back minus what you paid
-    const pnlForAmount  = quotedAmount - costForAmount
-    const pnlPct        = costForAmount > 0
-      ? (pnlForAmount / costForAmount) * 100
-      : 0
+      const avgBuyPrice  = priceFromSim / priceToSim
+      const quotedAmount = avgBuyPrice * amountRequested
+      const costForAmount = priceFromSim * amountRequested
+      const pnlForAmount  = quotedAmount - costForAmount
+      const pnlPct        = costForAmount > 0
+        ? (pnlForAmount / costForAmount) * 100
+        : 0
 
-    return [{
-      symbol:          token.symbol,
-      amount:          amountRequested,
-      to:              toToken.symbol,
-      averageBuyPrice: parseFloat(averageBuyPrice.toFixed(6)),
-      quotedAmount:    parseFloat(quotedAmount.toFixed(6)),
-      costForAmount:   parseFloat(costForAmount.toFixed(6)),
-      pnlForAmount:    parseFloat(pnlForAmount.toFixed(6)),
-      pnlPercentage:   parseFloat(pnlPct.toFixed(2)),
-    }]
+      results.push({
+        date,
+        symbol:          token.symbol,
+        amount:          amountRequested,
+        to:              toToken.symbol,
+        averageBuyPrice: parseFloat(avgBuyPrice.toFixed(6)),
+        quotedAmount:    parseFloat(quotedAmount.toFixed(6)),
+        costForAmount:   parseFloat(costForAmount.toFixed(6)),
+        pnlForAmount:    parseFloat(pnlForAmount.toFixed(6)),
+        pnlPercentage:   parseFloat(pnlPct.toFixed(2)),
+      })
+    }
+
+    return results
 
   } catch (err) {
     console.warn(`[PnL Error] ${tokenSymbol}: ${err.message}`)

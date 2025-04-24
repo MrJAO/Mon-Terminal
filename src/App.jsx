@@ -5,6 +5,7 @@ import TOKEN_LIST from './constants/tokenList'
 import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
 import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import { useWalletClient } from 'wagmi'
+import TerminalFooter from './components/TerminalFooter';
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
@@ -213,68 +214,78 @@ function App() {
   
     const [cmd, sub, tokenArg, ...rest] = input.split(' ')
   
-  // ── PnL ──
-  if (cmd === 'check' && sub === 'pnl') {
-    const symbol    = tokenArg?.toUpperCase()
-    const amount    = rest[0]
-    const toKeyword = rest[1]?.toLowerCase()
-    const dest      = rest[2]?.toUpperCase()
+      // ── PnL ──
+    if (cmd === 'check' && sub === 'pnl') {
+      const symbol    = tokenArg?.toUpperCase()
+      const amount    = rest[0]
+      const toKeyword = rest[1]?.toLowerCase()
+      const dest      = rest[2]?.toUpperCase()
 
-    // Validate full syntax: check pnl <TOKEN> <AMOUNT> to <DEST>
-    if (!symbol || !amount || toKeyword !== 'to' || !dest) {
-      setTerminalLines(prev => [
-        ...prev,
-        '❌ Usage: check pnl <token> <amt> to <dest>'
-      ])
-      return
-    }
-
-    try {
-      const res = await fetch(`${baseApiUrl}/pnl`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          address,
-          token:  symbol,
-          amount,
-          to:      dest
-        })
-      })
-      const data = await res.json()
-
-      if (data.success && data.data && !data.data.error) {
-        const e = data.data
-        const output = [
-          `PNL Report for ${e.symbol} (${amount}→${e.to}):`,
-          `- Quoted Amount: ${e.quotedAmount} ${e.to}`,
-          `- Cost for ${amount}: $${e.costForAmount.toFixed(6)}`,
-          `- PnL:               $${e.pnlForAmount.toFixed(6)} (${e.pnlPercentage.toFixed(2)}%)`
-        ].join('\n')
-
-        setCurrentPnL(e.pnlForAmount)
-        setPnlChartData([
-          { label: 'Cost', value: e.costForAmount },
-          { label: 'Now',  value: e.quotedAmount },
-          { label: 'PnL',  value: e.pnlForAmount }
+      // Validate full syntax: check pnl <TOKEN> <AMOUNT> to <DEST>
+      if (!symbol || !amount || toKeyword !== 'to' || !dest) {
+        setTerminalLines(prev => [
+          ...prev,
+          '❌ Usage: check pnl <token> <amt> to <dest>'
         ])
+        return
+      }
 
-        setTerminalLines(prev => {
-          const lines = prev.slice(0, -1)
-          return [...lines, output]
+      try {
+        const res = await fetch(`${baseApiUrl}/pnl`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            address,
+            token:  symbol,
+            amount,
+            to:      dest
+          })
         })
-      } else {
-        const errMsg = data.error || 'Unable to fetch PnL data.'
+        const data = await res.json()
+
+        // Expect an array of 3-day records now
+        if (data.success && Array.isArray(data.data)) {
+          const records = data.data
+
+          // Header
+          const header = `📈 3-Day PnL for ${records[0].symbol} (${amount}→${records[0].to}):`
+          const outputLines = [ header ]
+
+          // One line per day
+          records.forEach(r => {
+            outputLines.push(
+              `- ${r.date}: Received ${r.quotedAmount.toFixed(6)} ${r.to} | ` +
+              `Cost $${r.costForAmount.toFixed(6)} | ` +
+              `PnL $${r.pnlForAmount.toFixed(6)} (${r.pnlPercentage.toFixed(2)}%)`
+            )
+          })
+
+          // Update chart (PnL over time) and currentPnL (last day)
+          setPnlChartData(
+            records.map(r => ({ label: r.date, value: r.pnlForAmount }))
+          )
+          setCurrentPnL(records[records.length - 1].pnlForAmount)
+
+          // Render into terminal
+          setTerminalLines(prev => {
+            const lines = prev.slice(0, -1) // remove "thinking…" line
+            return [...lines, outputLines.join('\n')]
+          })
+
+        } else {
+          const errMsg = data.error || 'Invalid PnL data.'
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            `❌ ${errMsg}`
+          ])
+        }
+
+      } catch {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
-          `❌ ${errMsg}`
+          '❌ Mon Terminal is not responding.'
         ])
-      }
-    } catch {
-      setTerminalLines(prev => [
-        ...prev.slice(0, -1),
-        '❌ Mon Terminal is not responding.'
-      ])
-    } 
+      } 
   
     } else if ((cmd === 'my' && sub === 'achievements') || cmd === 'achievements') {
       try {
@@ -998,6 +1009,9 @@ function App() {
             </button>
           )}
         </div>
+
+      {/*  ── our new pixel‐buttons + robot footer ── */}
+      <TerminalFooter />
       </div>
     </div>
   )
