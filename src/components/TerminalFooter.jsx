@@ -56,12 +56,14 @@ export default function TerminalFooter() {
             <div className="tf-faq-actions">
               <button onClick={() => setShowFaq(false)}>Close</button>
               <div className="tf-faq-robot-btn" onClick={handleRobotClick}>
-                {robotClicked ? 'Gotcha 🤖' : '🤖 Click me'}
+                {robotClicked ? 'Gotcha!' : '🤖 Click me'}
               </div>
             </div>
 
             {/* hidden audio element playing RickRoll */}
-            <audio id="rickroll-audio" src={rickroll} preload="auto" autoPlay={robotClicked} />
+            {robotClicked && (
+              <audio id="rickroll-audio" src={rickroll} preload="auto" autoPlay />
+            )}
           </div>
         </div>
       )}
