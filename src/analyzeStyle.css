@@ -15,7 +15,7 @@
     box-shadow: 0 0 20px #7f00ff;
   }
   
-  /* Make the header span both columns */
+  /* Make the main analysis header span both columns */
   .analyze-header {
     grid-column: 1 / -1;
     font-size: 20px;
@@ -32,7 +32,7 @@
     border-radius: 8px;
   }
   
-  /* Labels and lists as before */
+  /* Primary labels (Total Transactions, Activity Level, etc.) */
   .analyze-label {
     font-size: 14px;
     font-weight: bold;
@@ -41,6 +41,7 @@
     display: block;
   }
   
+  /* Lists styling */
   .analyze-list {
     list-style-type: square;
     padding-left: 20px;
@@ -52,7 +53,16 @@
     color: #00fff7;
   }
   
-  /* NFT status pills */
+  /* NFT group titles (“Breath of Estova”, “Chewy”, etc.) */
+  .analyze-subheader {
+    display: block;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ff00a1;
+    margin-bottom: 6px;
+  }
+  
+  /* Status pills for individual NFTs */
   .analyze-nft-status {
     padding: 2px 8px;
     border-radius: 6px;
@@ -76,7 +86,14 @@
     color: #fff0f0;
   }
   
-  /* Optional: ensure at very small widths it stays single-column */
+  /* Remove panel styling when you only want the header (e.g. Featured Testnet NFTs) */
+  .no-panel {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border: none;
+  }
+  
+  /* Ensure single-column on very small screens */
   @media (max-width: 620px) {
     .analyze-container {
       grid-template-columns: 1fr;

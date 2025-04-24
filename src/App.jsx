@@ -416,16 +416,33 @@ function App() {
               <span className="analyze-label">NFT Holdings:</span> {totalNFTCount}
             </div>
 
-            {groupHoldings.map(({ groupName, items }) => (
-              <div className="analyze-section" key={groupName}>
-                <span className="analyze-subheader">{groupName}</span>
-                <ul className="analyze-list">
-                  {items.map(({ name, status }, i) => (
-                    <li key={i}>{name}: {status}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {groupHoldings.map(({ groupName, items }) => {
+              // 1) Render “Featured Testnet NFTs” as header-only
+              if (groupName === 'Featured Testnet NFTs') {
+                return (
+                  <div key={groupName} className="analyze-section no-panel">
+                    <span className="analyze-subheader">{groupName}</span>
+                  </div>
+                );
+              }
+              // 2) Skip completely empty groups
+              if (items.length === 0) {
+                return null;
+              }
+              // 3) Render normal panels
+              return (
+                <div className="analyze-section" key={groupName}>
+                  <span className="analyze-subheader">{groupName}</span>
+                  <ul className="analyze-list">
+                    {items.map(({ name, status }, i) => (
+                      <li key={i}>
+                        {name}: {status}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </div>
         )
 
