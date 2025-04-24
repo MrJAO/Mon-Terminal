@@ -417,39 +417,45 @@ function App() {
             </div>
 
             {groupHoldings
-              .filter(g => g.groupName !== 'Featured Testnet NFTs')
-              .map(({ groupName, items }) => (
-                <React.Fragment key={groupName}>
-                  {groupName === 'Breath of Estova' && (
-                    <div className="analyze-section no-panel">
-                      <span className="analyze-subheader">Featured Testnet NFTs</span>
-                    </div>
-                  )}
+              .filter(({ groupName }) => groupName !== 'Featured Testnet NFTs')
+              .map(({ groupName, items }) => {
+                const isFeaturedHeader = groupName === 'Breath of Estova'
 
-                  {items.length > 0 && (
-                    <div className="analyze-section">
-                      <span className="analyze-subheader">{groupName}</span>
-                      <ul className="analyze-list">
-                        {items.map(({ name, status }, i) => {
-                          let statusClass = ''
-                          if (status === 'Confirm')      statusClass = 'status-confirm'
-                          else if (status === 'Incomplete') statusClass = 'status-incomplete'
-                          else                               statusClass = 'status-not-holding'
+                return (
+                  <React.Fragment key={groupName}>
+                    {isFeaturedHeader && (
+                      <div className="analyze-section no-panel">
+                        <span className="analyze-subheader">Featured Testnet NFTs</span>
+                      </div>
+                    )}
 
-                          return (
-                            <li key={i}>
-                              {name}:
-                              <span className={`analyze-nft-status ${statusClass}`}>
-                                {status}
-                              </span>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    </div>
-                  )}
-                </React.Fragment>
-              ))}
+                    {items.length > 0 && (
+                      <div className="analyze-section">
+                        <span className="analyze-subheader">{groupName}</span>
+                        <ul className="analyze-list">
+                          {items.map(({ name, status }, i) => {
+                            const statusClass =
+                              status === 'Confirm'
+                                ? 'status-confirm'
+                                : status === 'Incomplete'
+                                ? 'status-incomplete'
+                                : 'status-not-holding'
+
+                            return (
+                              <li key={i}>
+                                {name}:{' '}
+                                <span className={`analyze-nft-status ${statusClass}`}>
+                                  {status}
+                                </span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </React.Fragment>
+                )
+              })}
           </div>
         )
 
