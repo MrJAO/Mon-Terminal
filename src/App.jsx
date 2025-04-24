@@ -355,106 +355,76 @@ function App() {
   
     } else if (cmd === 'analyze') {
       setIsAnalyzing(true)
-      setAnalyzeProgress('Initializing analysis...')
-    
-      const progressInterval = setInterval(() => {
-        setAnalyzeProgress(prev => {
-          if (prev.includes('...')) return 'Analyzing'
-          return prev + '.'
-        })
-      }, 800)
+      setTerminalLines(prev => [...prev, '> Mon Terminal is thinking...'])
     
       try {
-        const res = await fetch(`${baseApiUrl}/analyze`, {
+        // 1) Txs
+        setAnalyzeProgress('Counting transactions…')
+        const txRes = await fetch(`${baseApiUrl}/analyze/tx-count`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            address,
-            command: 'analyze'  // 🔧 Added this line
-          })
-        })        
-        const data = await res.json()
-    
-        clearInterval(progressInterval)
-        setIsAnalyzing(false)
-        setAnalyzeProgress('')
-    
-        if (data.success) {
-          const result = data.data
-          const dexLines = Object.entries(result.dexSummary.interactions)
-            .map(([dex, count]) => `→ ${dex}: ${count} interactions`)
-            .join('\n')
-    
-          const nftInfo = result.nftHoldings
-          const nftSummary = `- NFTs: ${nftInfo.total} total (${nftInfo.verified} verified, ${nftInfo.unverified} unverified)`
-    
-          const styledReport = (
-            <div className="analyze-container">
-              <div className="analyze-header">Mon Terminal Analysis</div>
-          
-              <div className="analyze-section">
-                <span className="analyze-label">Wallet</span>
-                <div className="break-all text-xs">{address}</div>
-              </div>
-          
-              <div className="analyze-section">
-                <span className="analyze-label">Total Transactions:</span> {result.totalTxCount}
-                <br />
-                <span className="analyze-label">Activity Level:</span> {result.activityLevel}
-              </div>
-          
-              <div className="analyze-section">
-                <span className="analyze-label">Token Contract Interactions:</span>
-                <ul className="analyze-list">
-                  {Object.entries(result.tokenStats).map(([symbol, count]) => (
-                    <li key={symbol}>{symbol}: {count}</li>
-                  ))}
-                </ul>
-              </div>
-          
-              <div className="analyze-section">
-                <span className="analyze-label">NFT Holdings:</span>
-                <ul className="analyze-list">
-                  {result.nftHoldings.map((nft, idx) => (
-                    <li key={idx}>
-                      {nft.name}
-                      <span className={`analyze-nft-status ${
-                        nft.status === 'Confirm' ? 'status-confirm' :
-                        nft.status === 'Incomplete' ? 'status-incomplete' :
-                        'status-not-holding'
-                      }`}>
-                        {nft.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )
-          
-          setTerminalLines(prev => {
-            const newLines = [...prev]
-            if (newLines[newLines.length - 1] === '> Mon Terminal is thinking...') newLines.pop()
-            return [...newLines, styledReport]
-          })
-          
-        } else {
-          setTerminalLines(prev => {
-            const newLines = [...prev]
-            if (newLines[newLines.length - 1] === '> Mon Terminal is thinking...') newLines.pop()
-            return [...newLines, `❌ ${data.message || 'Unable to analyze wallet.'}`]
-          })
-        }
-      } catch (err) {
-        clearInterval(progressInterval)
-        setIsAnalyzing(false)
-        setAnalyzeProgress('')
-        setTerminalLines(prev => {
-          const newLines = [...prev]
-          if (newLines[newLines.length - 1] === '> Mon Terminal is thinking...') newLines.pop()
-          return [...newLines, '❌ Mon Terminal is not responding.']
+          body: JSON.stringify({ address })
         })
-      }
+        const { totalTxCount } = await txRes.json()
+    
+        // 2) Tokens
+        setAnalyzeProgress('Fetching token interactions…')
+        const tokenRes = await fetch(`${baseApiUrl}/analyze/token-stats`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address })
+        })
+        const { tokenStats } = await tokenRes.json()
+    
+        // 3) NFTs
+        setAnalyzeProgress('Loading NFTs…')
+        const nftRes = await fetch(`${baseApiUrl}/analyze/nft-holdings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address })
+        })
+        const { nftHoldings } = await nftRes.json()
+    
+        // render
+        const styledReport = (
+          <div className="analyze-container">
+            {/* … same JSX as before … */}
+            <div className="analyze-section">
+              <span className="analyze-label">Total Transactions:</span> {totalTxCount}
+            </div>
+            <div className="analyze-section">
+              <span className="analyze-label">Token Contract Interactions:</span>
+              <ul>
+                {Object.entries(tokenStats).map(([s,c]) => <li key={s}>{s}: {c}</li>)}
+              </ul>
+            </div>
+            <div className="analyze-section">
+              <span className="analyze-label">NFT Holdings:</span>
+              <ul>
+                {nftHoldings.map((n,i) => (
+                  <li key={i}>
+                    {n.name} — <span className={`status-${n.status.toLowerCase()}`}>{n.status}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )
+    
+        // clear “thinking” and show report
+        setTerminalLines(prev => {
+          const lines = prev.filter(l => l !== '> Mon Terminal is thinking...')
+          return [...lines, styledReport]
+        })
+      } catch (err) {
+        setTerminalLines(prev => {
+          const lines = prev.filter(l => l !== '> Mon Terminal is thinking...')
+          return [...lines, '❌ Mon Terminal is not responding.']
+        })
+      } finally {
+        setIsAnalyzing(false)
+        setAnalyzeProgress('')
+      }       
     
     // ── Token Report ──
     } else if (cmd === 'token' && sub === 'report') {
