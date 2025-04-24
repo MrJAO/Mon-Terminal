@@ -26,7 +26,10 @@ const nftGroups = {
     { name: "DRIPSTER DISC PASS",                 address: "0x6c84c9d9e06002776b3cd87f54f915b5ae2be439", threshold: 1 },
     { name: "Sealuminati Testnetooor",            address: "0x4870e911b1986c6822a171cdf91806c3d44ce235", threshold: 10 }
   ],
-  "Featured Testnet NFTs": [
+
+  "Featured Testnet NFTs": [],
+
+  "Breath of Estova": [
     { name: "Legacy Egg",                         address: "0xa980f072bc06d67faec2b03a8ada0d6c9d0da9f8", threshold: 1 },
     { name: "Mystery Token",                      address: "0xff59f1e14c4f5522158a0cf029f94475ba469458", threshold: 1 }
   ],
@@ -83,7 +86,7 @@ const nftGroups = {
   "Wonad": [
     { name: "Genesis Planter Card",              address: "0x9a452f1ae5c1927259dacfa3fd58ede9679c61d0", threshold: 1 },
     { name: "Wonad Soil Card",                   address: "0x33cafd437816eb5aafe2b2e7bedf82a3d8d226e7", threshold: 1 },
-    { name: "Wonad Seed Card",                   address: "0x6b5bf2a49d18d2d7f628415060bd1ec11464595", threshold: 1 },
+    { name: "Wonad Seed Card",                   address: "0x6b5bf2a49d18d2d7f628415060bd1ec11464595d", threshold: 1 },
     { name: "Wonad Shover Card",                 address: "0x5af1e57d7d1c8a83d5dd244de71227caa2d69b31", threshold: 1 },
     { name: "Wonad Water Card",                  address: "0x2577a6bf5ea12b5e2b53bc7bd3fc93a529434d11", threshold: 1 },
     { name: "Wonad Sun Card",                    address: "0x2eFe558C1b4636144D32127E9C12E36508350a02", threshold: 1 }
@@ -105,6 +108,7 @@ function isValidAddress(addr) {
   return /^0x[a-fA-F0-9]{40}$/.test(addr);
 }
 
+// generic paginated transfer fetcher
 async function fetchAllTransfers(params) {
   const transfers = [];
   let pageKey, tries = 0;
@@ -114,11 +118,16 @@ async function fetchAllTransfers(params) {
     const resp = await fetch(TRANSFERS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'alchemy_getAssetTransfers', params:[rpcParams] })
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'alchemy_getAssetTransfers',
+        params: [rpcParams]
+      })
     });
     if (!resp.ok) throw new Error(`Alchemy error ${resp.status}`);
     const json = await resp.json();
-    transfers.push(...(json.result.transfers||[]));
+    transfers.push(...(json.result.transfers || []));
     pageKey = json.result.pageKey;
     tries++;
   } while (pageKey && tries < 10);
@@ -126,42 +135,36 @@ async function fetchAllTransfers(params) {
   return transfers;
 }
 
+// exact total transaction count via JSON-RPC
 async function getTransactionCount(address) {
-  const transfers = await fetchAllTransfers({
-    fromAddress:     address,
-    category:        ['external','erc20','erc721','erc1155'],
-    excludeZeroValue:true,
-    withMetadata:    false,
-    maxCount:        '0x3e8'
-  });
-  return transfers.length;
+  return await provider.getTransactionCount(address);
 }
 
-async function getAllTokenStats(address) {
-  // run them in parallel
-  const entries = await Promise.all(
-    tokenContracts.map(({ symbol, address: tokenAddr }) =>
-      getTokenInteractionCount(address, tokenAddr)
-        .then(count => [symbol, count])
-    )
-  );
-  return Object.fromEntries(entries);
-}
-
-async function getTokenInteractionCount(address, tokenAddr) {
+// count interactions with a specific ERC20 token
+async function getTokenInteractionCount(owner, tokenAddr) {
   const transfers = await fetchAllTransfers({
     contractAddresses: [tokenAddr],
     category:          ['erc20'],
     withMetadata:      false,
     maxCount:          '0x3e8',
-    toAddress:         address,
-    fromAddress:       address
+    toAddress:         owner,
+    fromAddress:       owner
   });
   return transfers.length;
 }
 
+// gather token stats as an array of { symbol, address, count }
+async function getAllTokenStats(address) {
+  return await Promise.all(
+    tokenContracts.map(async ({ symbol, address: tokenAddr }) => {
+      const count = await getTokenInteractionCount(address, tokenAddr);
+      return { symbol, address: tokenAddr, count };
+    })
+  );
+}
+
+// fetch all NFTs for an owner, as before
 async function getNFTs(owner) {
-  // fetch all pages of 100
   const all = [];
   let pageKey, tries = 0;
 
@@ -174,7 +177,7 @@ async function getNFTs(owner) {
     const resp = await fetch(url.toString());
     if (!resp.ok) throw new Error(`NFT API ${resp.status}`);
     const json = await resp.json();
-    all.push(...(json.ownedNfts||[]));
+    all.push(...(json.ownedNfts || []));
     pageKey = json.pageKey;
     tries++;
   } while (pageKey && tries < 10);
@@ -184,42 +187,50 @@ async function getNFTs(owner) {
 
 // —————————— ROUTES ——————————
 
-// 1️⃣ Transactions
+// 1️⃣ Total Transactions
 router.post('/tx-count', async (req, res) => {
   const { address } = req.body;
-  if (!isValidAddress(address)) return res.status(400).json({ success:false, message:'Invalid address' });
+  if (!isValidAddress(address)) {
+    return res.status(400).json({ success: false, message: 'Invalid address' });
+  }
   try {
-    const totalTxCount = await getTransactionCount(address);
-    return res.json({ success:true, totalTxCount });
+    const totalTxCount = await getTransactionCount(address.toLowerCase());
+    return res.json({ success: true, totalTxCount });
   } catch (e) {
-    return res.status(500).json({ success:false, message:e.message });
+    return res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// 2️⃣ Token Stats
+// 2️⃣ Token Contract Interactions
 router.post('/token-stats', async (req, res) => {
   const { address } = req.body;
-  if (!isValidAddress(address)) return res.status(400).json({ success:false, message:'Invalid address' });
+  if (!isValidAddress(address)) {
+    return res.status(400).json({ success: false, message: 'Invalid address' });
+  }
   try {
-    const tokenStats = await getAllTokenStats(address);
-    return res.json({ success:true, tokenStats });
+    const tokenStats = await getAllTokenStats(address.toLowerCase());
+    return res.json({ success: true, tokenStats });
   } catch (e) {
-    return res.status(500).json({ success:false, message:e.message });
+    return res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// 3️⃣ NFT Holdings
+// 3️⃣ NFT Holdings (unchanged)
 router.post('/nft-holdings', async (req, res) => {
   const { address } = req.body;
-  if (!isValidAddress(address)) return res.status(400).json({ success:false, message:'Invalid address' });
+  if (!isValidAddress(address)) {
+    return res.status(400).json({ success: false, message: 'Invalid address' });
+  }
 
   try {
-    const allNfts = await getNFTs(address);
+    const allNfts = await getNFTs(address.toLowerCase());
     let totalNFTCount = 0;
 
     const groupHoldings = Object.entries(nftGroups).map(([groupName, items]) => {
       const processed = items.map(({ name, address: addr, threshold }) => {
-        const count = allNfts.filter(n => n.contract?.address?.toLowerCase() === addr.toLowerCase()).length;
+        const count = allNfts.filter(n =>
+          n.contract?.address?.toLowerCase() === addr.toLowerCase()
+        ).length;
         totalNFTCount += count;
         const status = count >= threshold
           ? 'Confirm'
@@ -236,7 +247,7 @@ router.post('/nft-holdings', async (req, res) => {
       data: { totalNFTCount, groupHoldings }
     });
   } catch (e) {
-    return res.status(500).json({ success:false, message:e.message });
+    return res.status(500).json({ success: false, message: e.message });
   }
 });
 
