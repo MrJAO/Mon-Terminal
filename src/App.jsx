@@ -484,9 +484,9 @@ function App() {
                     )}
                   </React.Fragment>
                 )
-              })}       
+              })}
           </div>
-        )
+        )        
 
         setTerminalLines(prev => {
           const lines = prev.filter(l => l !== '> Mon Terminal is thinking...')
@@ -830,11 +830,7 @@ function App() {
             `❌ Unable to fetch NFTs: ${e.message}`
           ])
           setNftResults(null)
-        }
-        
-      } else if (cmd === 'clear') {
-        setTerminalLines(['> Terminal is cleared.'])
-        return
+        }        
 
       // ── Fallback Command ──
     } else {
