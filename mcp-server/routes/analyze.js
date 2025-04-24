@@ -80,7 +80,9 @@ async function getNFTs(address) {
     const url = new URL(`${BASE_URL}/getNFTs/`)
     url.searchParams.set('owner', address)
     url.searchParams.set('withMetadata', 'false')
-    if (pageKey) url.searchParams.set('pageKey', pageKey)
+    if (pageKey && typeof pageKey === 'string' && pageKey.trim() !== '') {
+      url.searchParams.set('pageKey', pageKey)
+    }    
 
     const res = await fetch(url.toString())
     if (!res.ok) throw new Error(`Alchemy NFT error: ${res.status} ${await res.text()}`)

@@ -368,8 +368,11 @@ function App() {
         const res = await fetch(`${baseApiUrl}/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address })
-        })
+          body: JSON.stringify({
+            address,
+            command: 'analyze'  // 🔧 Added this line
+          })
+        })        
         const data = await res.json()
     
         clearInterval(progressInterval)
