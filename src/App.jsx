@@ -356,7 +356,7 @@ function App() {
     } else if (cmd === 'analyze') {
       setIsAnalyzing(true)
       setTerminalLines(prev => [...prev, '> Mon Terminal is thinking...'])
-    
+
       try {
         // 1) Txs
         setAnalyzeProgress('Counting transactions…')
@@ -365,14 +365,15 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address })
         })
+        if (!txRes.ok) throw new Error(`Tx-count failed: ${txRes.status}`)
         const { totalTxCount } = await txRes.json()
-    
+
         // compute activity level locally
         let activityLevel = 'Low'
         if (totalTxCount >= 5000) activityLevel = 'High'
         else if (totalTxCount >= 1000) activityLevel = 'Intermediate'
         else if (totalTxCount >= 200)  activityLevel = 'Fair'
-    
+
         // 2) Tokens
         setAnalyzeProgress('Fetching token interactions…')
         const tokenRes = await fetch(`${baseApiUrl}/analyze/token-stats`, {
@@ -380,42 +381,53 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address })
         })
-        const { tokenStats } = await tokenRes.json()
-    
+        if (!tokenRes.ok) throw new Error(`Token-stats failed: ${tokenRes.status}`)
+        const tokenData = await tokenRes.json()
+        const tokenStats = tokenData.tokenStats
+
         // 3) NFTs
         setAnalyzeProgress('Loading NFTs…')
-        const nftRes  = await fetch(`${baseApiUrl}/analyze/nft-holdings`, {
+        const nftRes = await fetch(`${baseApiUrl}/analyze/nft-holdings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address })
         })
+        if (!nftRes.ok) throw new Error(`NFT-holdings failed: ${nftRes.status}`)
         const nftBody = await nftRes.json()
         const { totalNFTCount, groupHoldings } = nftBody.data
-    
+
         // render
         const styledReport = (
           <div className="analyze-container">
             <div className="analyze-header">Mon Terminal Analysis</div>
-    
+
             <div className="analyze-section">
               <span className="analyze-label">Total Transactions:</span> {totalTxCount}
               <br />
-              <span className="analyze-label">Activity Level:</span>    {activityLevel}
+              <span className="analyze-label">Activity Level:</span> {activityLevel}
             </div>
-    
+
             <div className="analyze-section">
               <span className="analyze-label">Token Contract Interactions:</span>
               <ul className="analyze-list">
-                {Object.entries(tokenStats).map(([symbol, count]) => (
-                  <li key={symbol}>{symbol}: {count}</li>
-                ))}
+                {Array.isArray(tokenStats)
+                  ? tokenStats.map(({ symbol, address: addr, count }) => (
+                      <li key={symbol}>
+                        {symbol}{' '}
+                        <small className="text-[10px] text-purple-300">({addr})</small>: {count}
+                      </li>
+                    ))
+                  : Object.entries(tokenStats).map(([symbol, count]) => (
+                      <li key={symbol}>{symbol}: {count}</li>
+                    ))
+                }
               </ul>
             </div>
-    
+
             <div className="analyze-section">
               <span className="analyze-label">NFT Holdings:</span> {totalNFTCount}
             </div>
-    
+
             {groupHoldings.map(({ groupName, items }) => (
               <div className="analyze-section" key={groupName}>
                 <span className="analyze-subheader">{groupName}</span>
@@ -428,13 +440,15 @@ function App() {
             ))}
           </div>
         )
-    
+
+        // replace “thinking” with our report
         setTerminalLines(prev => {
           const lines = prev.filter(l => l !== '> Mon Terminal is thinking...')
           return [...lines, styledReport]
         })
-    
-      } catch {
+
+      } catch (err) {
+        console.error('Analyze error:', err)
         setTerminalLines(prev => {
           const lines = prev.filter(l => l !== '> Mon Terminal is thinking...')
           return [...lines, '❌ Mon Terminal is not responding.']
