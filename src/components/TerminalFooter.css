@@ -1,139 +1,68 @@
-/* container fixed bottom-right */
-.tf-footer {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    z-index: 10;
-  }
-  
-  /* base button style */
-  .tf-btn {
-    padding: 6px 12px;
-    background: #22001a;
-    color: #ff00ff;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 12px;
-    border: 2px solid #ff00ff;
-    border-radius: 4px;
-    cursor: pointer;
-    text-transform: uppercase;
-    user-select: none;
-    transition: transform .1s;
-  }
-  .tf-btn:active {
-    transform: translateY(1px);
-  }
-  
-  /* glitch effect */
-  .tf-glitch {
-    position: relative;
-    overflow: hidden;
-  }
-  .tf-glitch::before,
-  .tf-glitch::after {
-    content: attr(data-text);
-    position: absolute;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    background: transparent;
-    clip: rect(0, 9999px, 0, 0);
-  }
-  .tf-glitch::before {
-    animation: glitch-anim 2s infinite linear alternate-reverse;
-    color: #00ffff;
-  }
-  .tf-glitch::after {
-    animation: glitch-anim2 2s infinite linear alternate-reverse;
-    color: #ff00ff;
-  }
-  @keyframes glitch-anim {
-    0% { clip: rect(10px, 9999px, 20px, 0); }
-    20% { clip: rect(30px, 9999px, 40px, 0); transform: translate(-2px, -1px); }
-    40% { clip: rect(50px, 9999px, 60px, 0); transform: translate(1px, 2px); }
-    60% { clip: rect(70px, 9999px, 80px, 0); transform: translate(-1px, 1px); }
-    80% { clip: rect(90px, 9999px, 100px, 0); transform: translate(2px, -2px); }
-    100% { clip: rect(110px, 9999px, 120px, 0); transform: translate(0); }
-  }
-  @keyframes glitch-anim2 {
-    0% { clip: rect(60px, 9999px, 70px, 0); }
-    20% { clip: rect(20px, 9999px, 30px, 0); transform: translate(1px, -1px); }
-    40% { clip: rect(80px, 9999px, 90px, 0); transform: translate(-1px, 2px); }
-    60% { clip: rect(40px, 9999px, 50px, 0); transform: translate(2px, 1px); }
-    80% { clip: rect(100px, 9999px, 110px, 0); transform: translate(-2px, -2px); }
-    100% { clip: rect(0, 9999px, 10px, 0); transform: translate(0); }
-  }
-  
-  /* small heart styling */
-  .tf-heart {
-    color: #aa00ff;
-    animation: pulse 1s ease-in-out infinite alternate;
-  }
-  @keyframes pulse {
-    from { transform: scale(1); }
-    to { transform: scale(1.2); }
-  }
-  
-  /* robot container */
-  .tf-robot {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-    user-select: none;
-  }
-  .tf-robot img {
-    width: 40px;
-    height: 40px;
-  }
-  .tf-robot-dialog {
-    margin-top: 4px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    color: #00ff00;
-    text-shadow: 0 0 4px #00ff00;
-  }
-  
-  /* FAQ popup overlay */
-  .tf-faq-overlay {
+.tf-faq-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.85);
+    background: rgba(0,0,0,0.9);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 20;
+    z-index: 100;
   }
   .tf-faq-box {
     background: #111;
     border: 2px solid #7f00ff;
-    padding: 20px;
-    width: 80%;
-    max-width: 600px;
+    padding: 16px;
+    width: 90%; max-width: 600px;
     font-family: 'Press Start 2P', monospace;
-    color: #f5f5f5;
-    box-shadow: 0 0 20px #7f00ff;
+    color: #fff;
+    box-shadow: 0 0 16px #7f00ff;
+    position: relative;
   }
   .tf-faq-box h2 {
-    color: #00fff7;
+    color: #a400ff;
+    text-align: center;
     margin-bottom: 12px;
   }
-  .tf-faq-box pre {
-    white-space: pre-wrap;
-    line-height: 1.4;
-    margin-bottom: 12px;
+  .tf-faq-list {
+    max-height: 60vh;
+    overflow-y: auto;
   }
-  .tf-faq-box button {
+  .tf-faq-item {
+    border: 1px solid #7f00ff;
+    background: #22001a;
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+  }
+  .tf-faq-command {
+    color: #a400ff;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .tf-faq-desc {
+    color: #fff;
+    font-size: 10px;
+    margin-left: 8px;
+  }
+  .tf-faq-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+  }
+  .tf-faq-actions button,
+  .tf-faq-robot-btn {
     padding: 6px 12px;
     background: #22001a;
     color: #ff00ff;
     font-family: 'Press Start 2P', monospace;
-    font-size: 12px;
+    font-size: 10px;
     border: 2px solid #ff00ff;
-    border-radius: 4px;
     cursor: pointer;
     text-transform: uppercase;
+  }
+  .tf-robot-ascii {
+    text-align: center;
+    margin: 8px 0;
+    color: #00ff00;
   }
   
