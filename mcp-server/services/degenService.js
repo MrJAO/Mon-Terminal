@@ -1,6 +1,6 @@
 // mcp-server/services/dexService.js
 import fetch from 'node-fetch'
-import { parseEther, Interface } from 'ethers/lib/utils'
+import { parseEther, Interface } from 'ethers'
 import { CONTRACT_ADDRESSES } from '../constants/contractAddresses.js'
 
 // Endpoint to check token listing status
