@@ -70,7 +70,7 @@ export default function TerminalFooter() {
 
       <div className="tf-footer">
         <div className="tf-btn tf-glitch" onClick={openX} data-text="Building ❤ – JAO 🌻">
-          Build with <span className="tf-heart">❤</span> – JAO 🌻
+          Building with <span className="tf-heart">❤</span> – JAO 🌻
         </div>
         <div className="tf-btn" onClick={() => setShowFaq(true)}>
           FACs

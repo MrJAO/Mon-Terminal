@@ -253,7 +253,7 @@ function App() {
       }
 
       if (records.length && !records[0]?.error) {
-        const header = `📈 3-Day PnL for ${records[0].symbol} (${amount}→${records[0].to}):`
+        const header = `📈 24hrs PnL for ${records[0].symbol} (${amount}→${records[0].to}):`
 
         const jsxOutput = [
           <div key="pnl-header" className="pnl-output-line">{header}</div>
