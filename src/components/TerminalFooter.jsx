@@ -1,9 +1,8 @@
 // src/components/TerminalFooter.jsx
 import React, { useState } from 'react';
 import './TerminalFooter.css';
-import rickroll from './RickRoll.mp3';  // import MP3 from components folder
+import rickroll from './RickRoll.mp3';
 
-// FAQ definitions
 const FAQS = [
   { id: 1, command: 'help', description: 'Show the available commands' },
   { id: 2, command: 'analyze', description: 'Analyze the user wallets and show the wallet Monad Interactions including Total Transactions, Interactions with known Tokens, NFTs that guarantee a mint on mainnet, and the list of Featured Testnet NFTs that you might want to hold' },
@@ -41,18 +40,18 @@ export default function TerminalFooter() {
                   <div className="tf-faq-desc">&gt; {f.description}</div>
                 </div>
               ))}
-            </div>
 
-            {/* ───── Important Notes Section ───── */}
-            <div className="tf-important-section">
-              <div className="tf-important-title">Important Notes:</div>
-              <ul className="tf-important-list">
-                <li>Some of the information might be wrong and if it is kindly inform me using the X account attached on the lower right side of the website. Thank you ❤</li>
-                <li>I'm using a <span className="neon-green">FREE TIER</span> in my Render server so if it's inactive for a few minutes it will take around 1min to activate the server and response to the commands. Use <span className="neon-green">"help"</span> first just to be sure.</li>
-                <li>If <span className="neon-yellow">NETWORK FEE Alert</span> appear cancel the transaction. Your transaction will fail and you will waste around 2.7 MON for the gas fee.</li>
-                <li>After using <span className="neon-green">"SHOW MY NFTs"</span>, use <span className="neon-green">"CLEAR"</span> to clear the terminal.</li>
-                <li><span className="neon-green">Check PnL</span>, <span className="neon-green">Best Price</span>, and <span className="neon-green">Token Report</span> results are currently using a simulated prices because I can't find API that support Monad Testnet token prices at the moment.</li>
-              </ul>
+              {/* Important Notes — same style block for consistency */}
+              <div className="tf-faq-item important-notes">
+                <div className="tf-faq-command neon-red">🛑 Important Notes</div>
+                <ul className="tf-important-list">
+                  <li>Some of the information might be wrong and if it is kindly inform me using the X account attached on the lower right side of the website. Thank you ❤</li>
+                  <li>I'm using a <span className="neon-green">FREE TIER</span> in my Render server so if it's inactive for a few minutes it will take around 1min to activate the server and response to the commands. Use <span className="neon-green">"help"</span> first just to be sure.</li>
+                  <li>If <span className="neon-yellow">NETWORK FEE Alert</span> appear cancel the transaction. Your transaction will fail and you will waste around 2.7 MON for the gas fee.</li>
+                  <li>After using <span className="neon-green">"SHOW MY NFTs"</span>, use <span className="neon-green">"CLEAR"</span> to clear the terminal.</li>
+                  <li><span className="neon-green">Check PnL</span>, <span className="neon-green">Best Price</span>, and <span className="neon-green">Token Report</span> results are currently using a simulated prices because I can't find API that support Monad Testnet token prices at the moment.</li>
+                </ul>
+              </div>
             </div>
 
             <div className="tf-faq-actions">
@@ -73,7 +72,6 @@ export default function TerminalFooter() {
         <div className="tf-btn tf-glitch" onClick={openX} data-text="Building ❤ – JAO 🌻">
           Build with <span className="tf-heart">❤</span> – JAO 🌻
         </div>
-
         <div className="tf-btn" onClick={() => setShowFaq(true)}>
           FACs
         </div>

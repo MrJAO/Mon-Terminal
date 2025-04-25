@@ -43,6 +43,40 @@
   font-size: 10px;
   margin-left: 8px;
 }
+
+/* Special coloring for Important Notes block */
+.important-notes {
+  color: #fff;
+}
+
+.important-notes .tf-faq-command {
+  color: #ff00aa; /* Neon pink */
+  text-shadow: 0 0 4px #ff00aa, 0 0 10px #ff00aa;
+  margin-bottom: 6px;
+}
+
+.important-notes ul {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.important-notes li {
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+/* Highlighted words */
+.neon-green {
+  color: #00ff99;
+  text-shadow: 0 0 4px #00ff99, 0 0 8px #00ff99;
+}
+.neon-yellow {
+  color: #ffff00;
+  text-shadow: 0 0 4px #ffff00, 0 0 8px #ffff00;
+}
+
 .tf-faq-actions {
   display: flex;
   justify-content: space-between;
@@ -64,40 +98,6 @@
   text-align: center;
   margin: 8px 0;
   color: #00ff00;
-}
-
-/* Important Notes Section */
-.tf-important-section {
-  font-family: 'Press Start 2P', monospace;
-  margin-top: 24px;
-  padding: 12px 8px;
-  color: #ff0040;
-  text-shadow: 0 0 2px #ff0040, 0 0 8px #ff0040;
-  font-size: 10px;
-  background: none;
-}
-.tf-important-title {
-  font-size: 12px;
-  margin-bottom: 10px;
-  color: #ff0040;
-  text-transform: uppercase;
-  text-shadow: 0 0 4px #ff0040, 0 0 10px #ff0040;
-}
-.tf-important-list {
-  list-style-type: square;
-  padding-left: 20px;
-}
-.tf-important-list li {
-  margin-bottom: 10px;
-  line-height: 1.6;
-}
-.neon-green {
-  color: #00ff99;
-  text-shadow: 0 0 4px #00ff99, 0 0 8px #00ff99;
-}
-.neon-yellow {
-  color: #ffff00;
-  text-shadow: 0 0 4px #ffff00, 0 0 8px #ffff00;
 }
 
 /* Footer / Button Styles */
