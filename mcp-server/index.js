@@ -17,6 +17,7 @@ import swapRoute               from './api/swap.js'
 import tokenReportRoute        from './api/token-report.js'
 import bestPriceRoute          from './api/best-price.js'
 import checkNFTRouter          from './routes/checkNFT.js'
+import degenRouter from './routes/degen.js';
 
 // 🆕 Monorail swap logic (quote + confirm)
 import quoteBuilderRoute       from './routes/quoteBuilder.js'
@@ -72,6 +73,9 @@ app.use('/api/best-price',      bestPriceRoute)
 
 // NFT Functions
 app.use('/api/checkNFT',        checkNFTRouter)
+
+// Nad Fun 
+app.use('/api/degen', degenRouter)
 
 // ✅ Root healthcheck
 app.get('/', (req, res) => {

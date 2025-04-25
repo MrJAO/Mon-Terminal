@@ -6,6 +6,7 @@ import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
 import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import { useWalletClient } from 'wagmi'
 import TerminalFooter from './components/TerminalFooter';
+import DegenConfirmationModal from './components/DegenConfirmationModal'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
@@ -67,6 +68,10 @@ const baseApiUrl = import.meta.env.PROD
   ? 'https://mon-terminal.onrender.com/api'
   : '/api'
 
+const degenApiUrl = import.meta.env.PROD
+  ? 'https://mon-terminal.onrender.com/degen'
+  : '/degen'
+
 function App() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
@@ -88,6 +93,8 @@ function App() {
   const [cooldownTimestamp, setCooldownTimestamp] = useState(null)
   const [nftResults, setNftResults] = useState(null)
   const [pendingSend, setPendingSend] = useState(null)
+  const [pendingDegen, setPendingDegen] = useState(null)
+  const [showDegenModal, setShowDegenModal] = useState(false)
 
   const achievementNames = {
     green10: "Profit Initiate",
@@ -841,8 +848,73 @@ function App() {
             `❌ Unable to fetch NFTs: ${e.message}`
           ])
           setNftResults(null)
-        }        
-
+        }
+        return  
+        
+      } else if (cmd === 'degen') {
+        // — Confirm path: “degen it”
+        if (sub === 'it') {
+          if (!pendingDegen) {
+            setTerminalLines(prev => [
+              ...prev.slice(0, -1),
+              '❌ No pending degen. First run: degen <amount> MON|WMON'
+            ])
+          } else {
+            // show modal or inline confirm
+            setShowDegenModal(true)
+          }
+          return
+        }
+      
+        // — Quote path: “degen <amt> <token>”
+        const amount = sub
+        const symbol = tokenArg?.toUpperCase()
+        if (!amount || !['MON','WMON'].includes(symbol)) {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            '❌ Usage: degen <amount> MON|WMON'
+          ])
+          return
+        }
+      
+        // 🛰 fetch price from Nad.fun
+        setTerminalLines(prev => [...prev.slice(0, -1), `> Fetching degen quote for ${amount} ${symbol}…`])
+        try {
+          const res = await fetch(`${degenApiUrl}/quote/${symbol}`)
+          const data = await res.json()
+          if (data.error) throw new Error(data.error)
+      
+          const price = Number(data.price)       // price in MON per token
+          const target = symbol === 'MON' ? 'WMON' : 'MON'
+          const receiveAmount = symbol === 'MON'
+            ? (Number(amount) / price)
+            : (Number(amount) * price)
+      
+          // stash for confirm
+          setPendingDegen({
+            from:  TOKEN_LIST.find(t => t.symbol === symbol).address,
+            to:    TOKEN_LIST.find(t => t.symbol === target).address,
+            amount,
+            sender: address
+          })
+      
+          // render exactly like your swap quote (so it picks up the same .mcp-output-box styling)
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            'Quote:',
+            `- You send:       ${amount} ${symbol}`,
+            `- You’ll receive: ${receiveAmount.toFixed(6)} ${target}`,
+            `- Price per unit: ${price.toFixed(6)} MON/${symbol}`,
+            'Type: degen it'
+          ])
+        } catch (err) {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            `❌ Failed to fetch degen quote: ${err.message}`
+          ])
+        }
+        return                     
+    
       // ── Fallback Command ──
     } else {
       try {
@@ -1009,6 +1081,12 @@ function App() {
             </button>
           )}
         </div>
+
+        <DegenConfirmationModal
+        isOpen={showDegenModal}
+        params={pendingDegen}
+        onClose={() => setShowDegenModal(false)}
+        />
 
       {/*  ── our new pixel‐buttons + robot footer ── */}
       <TerminalFooter />

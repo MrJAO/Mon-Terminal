@@ -8,6 +8,7 @@ _COOLDOWN_FILE = "cooldowns.json"
 _COOLDOWN_SECONDS = 24 * 60 * 60
 LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
+PENDING_DEGEN = {}
 
 # ─── Token symbol to contract address map ───
 TOKEN_ADDRESSES = {
@@ -58,19 +59,21 @@ def _save_cooldowns(data):
 
 def print_help():
     return """Available Mon Terminal Commands:
-> help                                          ------      Show command help menu
-> analyze                                       ------      Analyze wallet Token and NFT interactions 
-> check balance <token name>                    ------      View token balance for connected wallet
-> check pnl <token name> 1 to USDC              ------      View actual PnL from recent token transactions
-> record stats                                  ------      Record your last PnL on-chain (24h cooldown)
-> achievements                                  ------      View your unlocked achievements
-> mint <achievement_name>                       ------      Mint a soulbound achievement NFT
-> best price for <token name> 1 to USDC         ------      Compare DEX prices for a token
-> swap <token name> <amount> to <token name>    ------      Quote a token swap (e.g. swap MON 1 to USDC)
-> confirm <token name> <amount> to <token name> ------      Execute a quoted swap
-> show my nfts                                  ------      Show all your owned NFTs (with max limit)
-> send <amount> <token name> to <w-address>     ------      Send token to another wallet address
-> token report <token name> 1 to USDC           ------      7-day price history, % change, sentiment
+> help                                          <------ Show command help menu
+> analyze                                       <------ Analyze wallet Token and NFT interactions 
+> check balance <token name>                    <------ View token balance for connected wallet
+> check pnl <token name> 1 to USDC              <------ View actual PnL from recent token transactions
+> record stats                                  <------ Record your last PnL on-chain (24h cooldown)
+> achievements                                  <------ View your unlocked achievements
+> mint <achievement_name>                       <------ Mint a soulbound achievement NFT
+> best price for <token name> 1 to USDC         <------ Compare DEX prices for a token
+> swap <token name> <amount> to <token name>    <------ Quote a token swap (e.g. swap MON 1 to USDC)
+> confirm <token name> <amount> to <token name> <------ Execute a quoted swap
+> show my nfts                                  <------ Show all your owned NFTs (with max limit)
+> send <amount> <token name> to <w-address>     <------ Send token to another wallet address
+> token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment
+> degen <amt> <mon or wmon>                     <------  Quote a Degen swap
+> degen it                                      <------  Execute the quoted Degen swap
 """
 
 def simulate_clear():
@@ -449,6 +452,78 @@ def main():
             PENDING_SEND = {}
         return
 
+    # ─── Degen (quote + confirm) ───
+    elif command == "degen":
+        # user typed: degen it
+        if len(args) >= 2 and args[1].lower() == "it":
+            if not PENDING_DEGEN:
+                print("❌ No pending degen. First run: degen <amount> MON|WMON")
+                return
+            try:
+                resp = requests.post(
+                    "https://mon-terminal.onrender.com/api/swap/confirm",
+                    json=PENDING_DEGEN
+                )
+                data = resp.json()
+                if data.get("success") and "transaction" in data:
+                    tx = data["transaction"]
+                    print(f"🚀 Degen swap sent! Tx: {tx.get('hash', tx.get('rawTransaction','<unknown>'))}")
+                else:
+                    print(f"❌ Degen confirm error: {data.get('error','Missing tx data')}")
+            except Exception as e:
+                print(f"❌ Failed to confirm degen swap: {e}")
+            finally:
+                PENDING_DEGEN.clear()
+            return
+
+        # otherwise: degen <amount> MON|WMON
+        if len(args) < 3:
+            print("❌ Usage: degen <amount> MON|WMON or degen it")
+            return
+
+        amount = args[1]
+        token  = args[2].upper()
+        if token not in ("MON", "WMON"):
+            print("❌ Usage: degen <amount> MON|WMON")
+            return
+
+        # 1) Fetch price from Nad.fun
+        token_addr = TOKEN_ADDRESSES[token]
+        try:
+            resp = requests.get(
+                f"https://testnet-bot-api-server.nad.fun/token/market/{token_addr}"
+            )
+            resp.raise_for_status()
+            market = resp.json()
+            price_per_token = float(market["price"])
+        except Exception as e:
+            print(f"❌ Failed to fetch market info: {e}")
+            return
+
+        # 2) Compute receive amount
+        receive_symbol = "WMON" if token == "MON" else "MON"
+        if token == "MON":
+            receive_amount = float(amount) / price_per_token
+        else:
+            receive_amount = float(amount) * price_per_token
+
+        # 3) Store pending quote
+        PENDING_DEGEN.clear()
+        PENDING_DEGEN.update({
+            "from":   token_addr,
+            "to":     TOKEN_ADDRESSES[receive_symbol],
+            "amount": amount,
+            "sender": WALLET_ADDRESS
+        })
+
+        # 4) Print quote summary
+        print(f"📝 Degen Quote ({token}→{receive_symbol}):")
+        print(f"- Price per token: {price_per_token:.6f} MON/{token}")
+        print(f"- You send:        {amount} {token}")
+        print(f"- You’ll receive:  {receive_amount:.6f} {receive_symbol}")
+        print("> Type: degen it to execute this swap")
+        return  
+
     # ────────── Swap Quote ──────────
     elif command == "swap" and len(args) >= 5 and args[3].lower() == "to":
         sym_from = args[1].upper()
@@ -525,7 +600,7 @@ def main():
         print(simulate_nft_list(sort_by))
     elif command == "find" and len(args) > 1 and args[1] == "nft":
         keyword = args[2] if len(args) > 2 else ""
-        print(simulate_nft_search(keyword))
+        print(simulate_nft_search(keyword))  
 
     else:
         print(f"> {' '.join(args)}\nUnknown command. Type help to see available options.")
