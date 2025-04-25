@@ -10,7 +10,7 @@ LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
 PENDING_DEGEN = {}
 
-DEGEN_API_URL = "https://mon-terminal.onrender.com/degen"
+DEGEN_API_URL = "https://mon-terminal.onrender.com/api/degen"
 
 
 # ─── Token symbol to contract address map ───

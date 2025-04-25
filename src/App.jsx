@@ -67,9 +67,7 @@ const baseApiUrl = import.meta.env.PROD
   ? 'https://mon-terminal.onrender.com/api'
   : '/api'
 
-const degenApiUrl = import.meta.env.PROD
-  ? 'https://mon-terminal.onrender.com/degen'
-  : '/degen'
+const degenApiUrl = `${baseApiUrl}/degen`
 
 function App() {
   const { address, isConnected } = useAccount()
