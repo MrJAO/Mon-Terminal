@@ -1,5 +1,5 @@
 // utils/tokenReport.js
-import TOKEN_LIST from '../../src/constants/tokenList.js'
+import TOKEN_LIST from '../constants/tokenList.js'
 
 // ─── Dummy Prices ────────────────────────────────────────────────────────────
 const DUMMY_PRICES = {

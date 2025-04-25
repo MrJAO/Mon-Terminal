@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 import dotenv from 'dotenv'
-import TOKEN_LIST from '../../src/constants/tokenList.js'
+import TOKEN_LIST from '../constants/tokenList.js'
 import { provider } from './provider.js'
 
 dotenv.config()

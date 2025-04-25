@@ -1,6 +1,6 @@
 // utils/getWalletPnL.js
 import { ethers } from 'ethers'
-import TOKEN_LIST from '../../src/constants/tokenList.js'
+import TOKEN_LIST from '../constants/tokenList.js'
 
 const DUMMY_PRICES = {
   MON:   10,

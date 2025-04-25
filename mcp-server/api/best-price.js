@@ -1,6 +1,6 @@
 // api/best-price.js
 import express from 'express'
-import TOKEN_LIST from '../../src/constants/tokenList.js'
+import TOKEN_LIST from '../constants/tokenList.js'
 
 const router = express.Router()
 const ZERO = '0x0000000000000000000000000000000000000000'
