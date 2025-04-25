@@ -1,11 +1,5 @@
 [phases.setup]
-nixPkgs = ['python311Full', 'nodejs']
-
-[phases.install]
-cmds = [
-  "python3 -m ensurepip --upgrade",
-  "python3 -m pip install --no-cache-dir -r requirements.txt"
-]
+nixPkgs = ['nodejs', 'python311', 'python311Packages.requests']
 
 [start]
 cmd = "node index.js"
