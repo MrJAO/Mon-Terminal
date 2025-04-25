@@ -3,12 +3,12 @@ import fetch from 'node-fetch';
 
 const DEGEN_BASE =
   process.env.DEGEN_API_URL ||
-  'https://api.nad.fun';
+  'https://testnet-bot-api-server.nad.fun';
 
 /**
  * Fetch a quote for a degen swap.
  * @param {string} contractAddress
- * @returns {Promise<{ price: string }>}  // or { error: string }
+ * @returns {Promise<{ price: string }>}  // or throws on error
  */
 export async function getQuote(contractAddress) {
   const url = `${DEGEN_BASE}/quote/${contractAddress}`;

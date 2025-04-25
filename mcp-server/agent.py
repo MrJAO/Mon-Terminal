@@ -10,7 +10,7 @@ LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
 PENDING_DEGEN = {}
 
-DEGEN_API_URL = "https://api.nad.fun"
+DEGEN_API_URL = "https://testnet-bot-api-server.nad.fun"
 
 
 # ─── Token symbol to contract address map ───
