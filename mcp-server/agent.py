@@ -2,12 +2,16 @@ import sys
 import time
 import json
 import requests
+import os
 
 WALLET_ADDRESS = "0xd9F016e453dE48D877e3f199E8FA4aADca2E979C"  # Replace dynamically if needed
 _COOLDOWN_FILE = "cooldowns.json"
 _COOLDOWN_SECONDS = 24 * 60 * 60
 LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
+
+BASE_URL = "https://mon-terminal-production.up.railway.app/api"
+DEFAULT_GAS_LIMIT = os.getenv("DEFAULT_GAS_LIMIT", "250000")
 
 # ─── Token symbol to contract address map ───
 TOKEN_ADDRESSES = {
@@ -464,12 +468,16 @@ def main():
             return
 
         try:
-            resp = requests.post("https://mon-terminal-production.up.railway.app/api/track/quote", json={
-                "from":   from_token,
-                "to":     to_token,
-                "amount": amount,
-                "sender": WALLET_ADDRESS
-            })
+            resp = requests.post(
+                f"{BASE_URL}/swap/quote",
+                json={
+                    "from":     from_token,
+                    "to":       to_token,
+                    "amount":   amount,
+                    "sender":   WALLET_ADDRESS,           # ← note trailing comma
+                    "gasLimit": DEFAULT_GAS_LIMIT
+                }
+            )
             data = resp.json()
             if data.get("success"):
                 q = data["quote"]
@@ -481,13 +489,15 @@ def main():
                     f"- Price impact:   {float(q['compound_impact'])*100:.2f}%\n\n"
                     f"Type: confirm"
                 )
-                # 🧠 Store last swap
+
+                # store for confirm
                 global LAST_SWAP_QUOTE
                 LAST_SWAP_QUOTE = {
-                    "from": from_token,
-                    "to": to_token,
-                    "amount": amount,
-                    "sender": WALLET_ADDRESS
+                    "from":     from_token,
+                    "to":       to_token,
+                    "amount":   amount,
+                    "sender":   WALLET_ADDRESS,          # ← and here
+                    "gasLimit": DEFAULT_GAS_LIMIT
                 }
             else:
                 print(f"❌ Swap quote error: {data.get('error')}")
@@ -501,7 +511,7 @@ def main():
             return
 
         try:
-            resp = requests.post("https://mon-terminal-production.up.railway.app/api/track/confirm", json=LAST_SWAP_QUOTE)
+            resp = requests.post(f"{BASE_URL}/swap/confirm", json=LAST_SWAP_QUOTE)
             data = resp.json()
             if data.get("success") and "transaction" in data:
                 tx = data["transaction"]

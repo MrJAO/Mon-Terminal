@@ -61,6 +61,7 @@ const renderNFTs = (nfts, sortBy) => {
   )
 }
 
+const DEFAULT_GAS_LIMIT = import.meta.env.VITE_DEFAULT_GAS_LIMIT || '250000'
 const MON_TERMINAL_ADDRESS = import.meta.env.VITE_MON_TERMINAL_ADDRESS
 const ACHIEVEMENT_ADDRESS = import.meta.env.VITE_ACHIEVEMENT_NFT_ADDRESS
 const baseApiUrl = import.meta.env.PROD
@@ -716,10 +717,8 @@ function App() {
       const amount     = tokenArg
       const toSymbol   = rest[1]?.toUpperCase()
 
-      // find on-chain addresses in your TOKEN_LIST
       const fromInfo = TOKEN_LIST.find(t => t.symbol === fromSymbol)
       const toInfo   = TOKEN_LIST.find(t => t.symbol === toSymbol)
-
       if (!fromInfo || !toInfo) {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
@@ -731,7 +730,6 @@ function App() {
       const from = fromInfo.address
       const to   = toInfo.address
 
-      // replace the “thinking” line
       setTerminalLines(prev => [
         ...prev.slice(0, -1),
         `> Fetching quote for ${amount} ${fromSymbol} → ${toSymbol}...`
@@ -741,14 +739,19 @@ function App() {
         const res = await fetch(`${baseApiUrl}/swap/quote`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from, to, amount, sender: address })
+          body: JSON.stringify({
+            from,
+            to,
+            amount,
+            sender: address,
+            gasLimit: DEFAULT_GAS_LIMIT
+          })
         })
         const data = await res.json()
 
         if (data.success) {
           const q = data.quote
-          // stash for confirm
-          setLastSwapQuote({ from, to, amount, sender: address })
+          setLastSwapQuote({ from, to, amount, sender: address, gasLimit: DEFAULT_GAS_LIMIT })
 
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
@@ -765,7 +768,7 @@ function App() {
             `❌ ${data.error}`
           ])
         }
-      } catch (e) {
+      } catch {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
           '❌ Swap quote failed.'
@@ -774,52 +777,54 @@ function App() {
 
       return
     }
-    
-      // ── Confirm Swap ──
-      else if (cmd === 'confirm' && !sub) {
-        if (!lastSwapQuote) {
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            '❌ No swap quote available.'
-          ])
-          return
-        }
+
+    // ── Confirm Swap ──
+    else if (cmd === 'confirm' && !sub) {
+      if (!lastSwapQuote) {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
-          '> Executing swap...'
+          '❌ No swap quote available.'
         ])
-        try {
-          const res = await fetch(`${baseApiUrl}/swap/confirm`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(lastSwapQuote)
+        return
+      }
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        '> Executing swap...'
+      ])
+      try {
+        const res = await fetch(`${baseApiUrl}/swap/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lastSwapQuote)
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          const txObj = data.transaction
+          if (!walletClient) throw new Error('Wallet not connected')
+          const txHash = await walletClient.sendTransaction({
+            to:       txObj.to,
+            data:     txObj.data,
+            value:    txObj.value || '0x0',
+            gasLimit: txObj.gasLimit
           })
-          const data = await res.json()
-          if (data.success) {
-            const txObj = data.transaction
-            if (!walletClient) throw new Error('Wallet not connected')
-            const txHash = await walletClient.sendTransaction({
-              to: txObj.to,
-              data: txObj.data,
-              value: txObj.value || '0x0'
-            })
-            setTerminalLines(prev => [
-              ...prev.slice(0, -1),
-              `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
-            ])
-          } else {
-            setTerminalLines(prev => [
-              ...prev.slice(0, -1),
-              `❌ ${data.error}`
-            ])
-          }
-        } catch (err) {
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
-            `❌ Confirm failed: ${err.message}`
+            `> ✅ Swap sent. Tx: https://testnet.monadexplorer.com/tx/${txHash}`
+          ])
+        } else {
+          setTerminalLines(prev => [
+            ...prev.slice(0, -1),
+            `❌ ${data.error}`
           ])
         }
+      } catch (err) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          `❌ Confirm failed: ${err.message}`
+        ])
       }
+    }
     
       // ── Show NFTs ──
       else if (cmd === 'show' && sub === 'my' && tokenArg === 'nfts') {

@@ -1,7 +1,8 @@
 // api/swapService.js
 import fetch from 'node-fetch'
+import { BigNumber } from 'ethers'
 
-export async function buildSwap({ from, to, amount, sender }) {
+export async function buildSwap({ from, to, amount, sender, gasLimitOverride }) {
   const {
     MONORAIL_API_URL = 'https://testnet-pathfinder-v2.monorail.xyz',
     SLIPPAGE = '50',
@@ -20,25 +21,22 @@ export async function buildSwap({ from, to, amount, sender }) {
   url.searchParams.set('source', 'mon-terminal')
   url.searchParams.set('build', 'true')
 
-  // Log full build URL
   console.log('🚀 Build URL:', url.toString())
 
   const resp = await fetch(url.toString())
   const raw = await resp.text()
 
-  // Log and flush Monorail response even on fatal parse issues
   console.log('📦 Raw Monorail response (pre-parse):', raw)
-  await new Promise(resolve => setTimeout(resolve, 100)) // flush logs
-  
+  await new Promise(resolve => setTimeout(resolve, 100))
+
   let json
   try {
     json = JSON.parse(raw)
   } catch (err) {
     console.error('❌ JSON parse failed:', err.message)
     throw new Error(`Non-JSON response: ${raw}`)
-  }  
+  }
 
-  // Log parsed response
   console.log('🧾 Monorail build response JSON:', JSON.stringify(json, null, 2))
 
   if (!resp.ok) {
@@ -49,14 +47,20 @@ export async function buildSwap({ from, to, amount, sender }) {
   if (!tx || !tx.to || !tx.data) {
     throw new Error(`Missing transaction fields in response. Full payload: ${JSON.stringify(json)}`)
   }
-  
-  // ✅ Log extracted transaction
+
+  // determine gasLimit (in hex) from override or default
+  const defaultGas = process.env.DEFAULT_GAS_LIMIT || '250000'
+  const gasLimit = BigNumber
+    .from(gasLimitOverride || defaultGas)
+    .toHexString()
+
+  console.log('⛽ Using gasLimit:', gasLimit)
   console.log('🧾 Final parsed transaction object:', tx)
-  
+
   return {
-    to: tx.to,
-    data: tx.data,
-    value: tx.value || '0x0'  // default to 0 if not provided
+    to:       tx.to,
+    data:     tx.data,
+    value:    tx.value || '0x0',
+    gasLimit
   }
-  
 }
