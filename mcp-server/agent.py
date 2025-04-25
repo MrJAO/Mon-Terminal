@@ -464,7 +464,7 @@ def main():
                 return
             try:
                 resp = requests.post(
-                    "https://mon-terminal.onrender.com/api/swap/confirm",
+                    f"{DEGEN_API_URL}/confirm",
                     json=PENDING_DEGEN
                 )
                 data = resp.json()

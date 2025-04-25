@@ -6,22 +6,24 @@ import cors from 'cors'
 dotenv.config()
 
 // 📦 Route handlers
-import analyzeRoute            from './routes/analyze.js'
-import commandRoute            from './api/command.js'
-import balanceRoute            from './routes/balance.js'
-import pnlRoute                from './api/pnl.js'
-import recordStatRoute         from './api/record-stat.js'
+import analyzeRoute             from './routes/analyze.js'
+import commandRoute             from './api/command.js'
+import balanceRoute             from './routes/balance.js'
+import pnlRoute                 from './api/pnl.js'
+import recordStatRoute          from './api/record-stat.js'
 import achievementsAddressRoute from './api/achievements/address.js'
-import achievementsMintRoute   from './api/achievements/mint.js'
-import swapRoute               from './api/swap.js'
-import tokenReportRoute        from './api/token-report.js'
-import bestPriceRoute          from './api/best-price.js'
-import checkNFTRouter          from './routes/checkNFT.js'
-import degenRouter from './routes/degen.js';
+import achievementsMintRoute    from './api/achievements/mint.js'
+import swapRoute                from './api/swap.js'
+import tokenReportRoute         from './api/token-report.js'
+import bestPriceRoute           from './api/best-price.js'
+import checkNFTRouter           from './routes/checkNFT.js'
+
+// 🆕 Degen (Nad.fun) routes
+import degenRouter              from './routes/degen.js'
 
 // 🆕 Monorail swap logic (quote + confirm)
-import quoteBuilderRoute       from './routes/quoteBuilder.js'
-import swapBuilderRoute        from './routes/swapBuilder.js'
+import quoteBuilderRoute        from './routes/quoteBuilder.js'
+import swapBuilderRoute         from './routes/swapBuilder.js'
 
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -74,8 +76,9 @@ app.use('/api/best-price',      bestPriceRoute)
 // NFT Functions
 app.use('/api/checkNFT',        checkNFTRouter)
 
-// Nad Fun 
-app.use('/api/degen', degenRouter)
+// ——— Nad.fun Degen routes — mount at /degen
+app.use('/degen', degenRouter)
+console.log('🟢 Degen routes mounted at /degen')
 
 // ✅ Root healthcheck
 app.get('/', (req, res) => {

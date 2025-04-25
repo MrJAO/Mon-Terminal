@@ -1,12 +1,24 @@
 // mcp-server/routes/degen.js
 import express from 'express';
-import { fetchTokenMarket } from '../services/degenService.js';
+import { getQuote, confirmSwap } from '../services/degenService.js';
+
 const router = express.Router();
 
-router.get('/quote/:token', async (req, res) => {
+// GET /api/degen/quote/:contractAddress
+router.get('/quote/:contractAddress', async (req, res) => {
   try {
-    const data = await fetchTokenMarket(req.params.token);
-    res.json(data);
+    const quote = await getQuote(req.params.contractAddress);
+    res.json(quote);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/degen/confirm
+router.post('/confirm', async (req, res) => {
+  try {
+    const result = await confirmSwap(req.body);
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
