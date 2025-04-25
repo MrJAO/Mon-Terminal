@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ['nodejs', 'python311Full', 'python311Packages.requests']
-
-[phases.build]
-cmds = []
-
-[start]
-cmd = "PATH=$PATH:/nix/var/nix/profiles/default/bin node index.js"
