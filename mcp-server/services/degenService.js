@@ -6,9 +6,9 @@ const DEGEN_BASE =
   'https://api.nad.fun';
 
 /**
- * Fetch a quote for degen swaps.
+ * Fetch a quote for a degen swap.
  * @param {string} contractAddress
- * @returns {Promise<{ price: string, error?: string }>}
+ * @returns {Promise<{ price: string }>}  // or { error: string }
  */
 export async function getQuote(contractAddress) {
   const url = `${DEGEN_BASE}/quote/${contractAddress}`;
@@ -23,18 +23,18 @@ export async function getQuote(contractAddress) {
 /**
  * Execute a confirmed degen swap.
  * @param {{ from: string, to: string, amount: string, sender: string }} payload
- * @returns {Promise<{ success: boolean, transaction: { hash: string }, error?: string }>}
+ * @returns {Promise<{ success: boolean, transaction: { hash: string } }>}
  */
 export async function confirmSwap(payload) {
   const url = `${DEGEN_BASE}/swap`;
   const res = await fetch(url, {
-    method: 'POST',
+    method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body:    JSON.stringify(payload),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Swap failed (${res.status}): ${text}`);
+    throw new Error(`Swap confirm failed (${res.status}): ${text}`);
   }
   return res.json();
 }
