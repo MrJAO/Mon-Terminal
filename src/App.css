@@ -377,3 +377,22 @@ button:focus-visible {
   70% { opacity: 1; }
   100% { opacity: 0.8; }
 }
+
+/* PnL Output Lines */
+.pnl-output-line {
+  font-family: 'Press Start 2P', monospace;
+  color: var(--color-text);
+  font-size: 10px;
+  line-height: 1.6;
+  margin-left: 1rem;
+}
+
+.pnl-positive {
+  color: #00ff99;
+  text-shadow: 0 0 4px #00ff99, 0 0 6px #00ff99;
+}
+
+.pnl-negative {
+  color: #ff4d6d;
+  text-shadow: 0 0 4px #ff4d6d, 0 0 6px #ff4d6d;
+}
