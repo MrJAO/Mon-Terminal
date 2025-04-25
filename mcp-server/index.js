@@ -77,8 +77,8 @@ app.use('/api/best-price',      bestPriceRoute)
 app.use('/api/checkNFT',        checkNFTRouter)
 
 // ——— Nad.fun Degen routes — mount at /degen
-app.use('/degen', degenRouter)
-console.log('🟢 Degen routes mounted at /degen')
+app.use('/api/degen', degenRouter)
+console.log('🟢 Degen routes mounted at /api/degen')
 
 // ✅ Root healthcheck
 app.get('/', (req, res) => {

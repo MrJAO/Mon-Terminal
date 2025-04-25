@@ -85,9 +85,9 @@ def simulate_clear():
 def analyze_wallet(address):
     try:
         # 1️⃣ Total transactions
-        resp = requests.post(
-            f"{DEGEN_API_URL}/swap",
-            json=PENDING_DEGEN
+        tx_resp = requests.post(
+            "https://mon-terminal.onrender.com/api/analyze/tx-count",
+            json={"address": address}
         )
         tx_resp.raise_for_status()
         total = tx_resp.json().get("totalTxCount", 0)
@@ -463,22 +463,23 @@ def main():
                 print("❌ No pending degen. First run: degen <amount> MON|WMON to <contractAddress>")
                 return
             try:
+                # Nad.fun uses /swap for execution
                 resp = requests.post(
-                    f"{DEGEN_API_URL}/confirm",
+                    f"{DEGEN_API_URL}/swap",
                     json=PENDING_DEGEN
                 )
                 data = resp.json()
                 if data.get("success"):
                     print(f"🚀 Degen swap sent! Tx: {data['transaction']['hash']}")
                 else:
-                    print(f"❌ Degen confirm error: {data.get('error', 'Missing transaction data')}")
+                    print(f"❌ Degen swap error: {data.get('error', 'Missing transaction data')}")
             except Exception as e:
                 print(f"❌ Failed to confirm degen swap: {e}")
             finally:
                 PENDING_DEGEN.clear()
             return
 
-        # — Quote path: “degen <amt> <token> to <contractAddress>”
+        # — Quote path: “degen <amt> MON|WMON to <contractAddress>”
         if len(args) < 5 or args[3].lower() != "to":
             print("❌ Usage: degen <amount> MON|WMON to <contractAddress>")
             return
@@ -493,6 +494,7 @@ def main():
 
         try:
             print(f"🛰 Fetching degen quote for {amount} {symbol} → {contractAddr}…")
+            # quote endpoint stays /quote/
             resp = requests.get(f"{DEGEN_API_URL}/quote/{contractAddr}")
             resp.raise_for_status()
             quote = resp.json()
@@ -500,14 +502,9 @@ def main():
                 raise ValueError(quote["error"])
 
             price   = float(quote["price"])   # MON per token
-            receive = (
-                float(amount) / price
-                if symbol == "MON"
-                else float(amount) * price
-            )
+            receive = (float(amount) / price) if symbol == "MON" else (float(amount) * price)
             target = "WMON" if symbol == "MON" else "MON"
 
-            # stash for confirm
             PENDING_DEGEN.clear()
             PENDING_DEGEN.update({
                 "from":   TOKEN_ADDRESSES[symbol],
@@ -516,7 +513,6 @@ def main():
                 "sender": WALLET_ADDRESS
             })
 
-            # print quote with symbol
             print("📊 Quote:")
             print(f"- You send:       {amount} {symbol}")
             print(f"- You’ll receive: {receive:.6f} {target}")

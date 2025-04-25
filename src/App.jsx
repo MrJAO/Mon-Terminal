@@ -67,7 +67,7 @@ const baseApiUrl = import.meta.env.PROD
   ? 'https://mon-terminal.onrender.com/api'
   : '/api'
 
-const DEGEN_BASE = import.meta.env.VITE_DEGEN_API_URL || 'https://api.nad.fun'
+const degenApiUrl = `${baseApiUrl}/degen`
 
 function App() {
   const { address, isConnected } = useAccount()
@@ -858,7 +858,7 @@ function App() {
           } else {
             setTerminalLines(prev => [...prev.slice(0, -1), '> Executing degen swap…'])
             try {
-              const res = await fetch(`${degenApiUrl}/confirm`, {
+              const res = await fetch(`${degenApiUrl}/swap`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify(pendingDegen)
@@ -909,7 +909,7 @@ function App() {
         ])
       
         try {
-          const res  = await fetch(`${DEGEN_BASE}/quote/${contractAddr}`)
+          const res  = await fetch(`${degenApiUrl}/quote/${contractAddr}`)
           const data = await res.json()
           if (data.error) throw new Error(data.error)
       
