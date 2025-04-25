@@ -18,8 +18,6 @@ const FAQS = [
     { id: 11, command: 'show my nfts', description: 'Will show all the user owned NFTs but have a maximum limit of 100' },
     { id: 12, command: 'send <amount> <token name> to <w-address>', description: 'e.g. send 1 dak to 0xd9F016e453dE48D877e3f199E8FA4aADca2E979C' },
     { id: 13, command: 'token report <token name> <amount> to <dest>', description: 'e.g. token report dak 1 to usdc, will show a 3–7 days historical report of the token (simulated result at the moment)' },
-    { id: 1, command: 'degen <amount> <mon or wmon> to <contract addres>', description: '> degen 1 mon to <contract address>, buy a memecoin on Nad.Fun' },
-    { id: 1, command: 'degen it', description: 'execute and finalize your transaction after confirming a popup metamask confirmation' },  
   ];
 
 export default function TerminalFooter() {

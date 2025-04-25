@@ -8,10 +8,6 @@ _COOLDOWN_FILE = "cooldowns.json"
 _COOLDOWN_SECONDS = 24 * 60 * 60
 LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
-PENDING_DEGEN = {}
-
-DEGEN_API_URL = "https://testnet-bot-api-server.nad.fun"
-
 
 # ─── Token symbol to contract address map ───
 TOKEN_ADDRESSES = {
@@ -75,8 +71,6 @@ def print_help():
 > show my nfts                                  <------ Show all your owned NFTs (with max limit)
 > send <amount> <token name> to <w-address>     <------ Send token to another wallet address
 > token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment
-> degen <amount> <mon/wmon> to <CA>             <------  Quote a Degen swap
-> degen it                                      <------  Execute the quoted Degen swap
 """
 
 def simulate_clear():
@@ -455,73 +449,6 @@ def main():
             PENDING_SEND = {}
         return
 
-    # ─── Degen (quote + confirm) ───
-    elif command == "degen":
-        # — Confirm path: “degen it”
-        if len(args) > 1 and args[1].lower() == "it":
-            if not PENDING_DEGEN:
-                print("❌ No pending degen. First run: degen <amount> MON|WMON to <contractAddress>")
-                return
-            try:
-                # Nad.fun uses /swap for execution
-                resp = requests.post(
-                    f"{DEGEN_API_URL}/swap",
-                    json=PENDING_DEGEN
-                )
-                data = resp.json()
-                if data.get("success"):
-                    print(f"🚀 Degen swap sent! Tx: {data['transaction']['hash']}")
-                else:
-                    print(f"❌ Degen swap error: {data.get('error', 'Missing transaction data')}")
-            except Exception as e:
-                print(f"❌ Failed to confirm degen swap: {e}")
-            finally:
-                PENDING_DEGEN.clear()
-            return
-
-        # — Quote path: “degen <amt> MON|WMON to <contractAddress>”
-        if len(args) < 5 or args[3].lower() != "to":
-            print("❌ Usage: degen <amount> MON|WMON to <contractAddress>")
-            return
-
-        amount       = args[1]
-        symbol       = args[2].upper()
-        contractAddr = args[4]
-
-        if symbol not in ("MON", "WMON"):
-            print("❌ Usage: degen <amount> MON|WMON to <contractAddress>")
-            return
-
-        try:
-            print(f"🛰 Fetching degen quote for {amount} {symbol} → {contractAddr}…")
-            # quote endpoint stays /quote/
-            resp = requests.get(f"{DEGEN_API_URL}/quote/{contractAddr}")
-            resp.raise_for_status()
-            quote = resp.json()
-            if quote.get("error"):
-                raise ValueError(quote["error"])
-
-            price   = float(quote["price"])   # MON per token
-            receive = (float(amount) / price) if symbol == "MON" else (float(amount) * price)
-            target = "WMON" if symbol == "MON" else "MON"
-
-            PENDING_DEGEN.clear()
-            PENDING_DEGEN.update({
-                "from":   TOKEN_ADDRESSES[symbol],
-                "to":     contractAddr,
-                "amount": amount,
-                "sender": WALLET_ADDRESS
-            })
-
-            print("📊 Quote:")
-            print(f"- You send:       {amount} {symbol}")
-            print(f"- You’ll receive: {receive:.6f} {target}")
-            print(f"- Price per unit: {price:.6f} MON/{symbol}")
-            print("Type: degen it")
-        except Exception as e:
-            print(f"❌ Failed to fetch degen quote: {e}")
-        return
-
     # ────────── Swap Quote ──────────
     elif command == "swap" and len(args) >= 5 and args[3].lower() == "to":
         sym_from = args[1].upper()
@@ -598,7 +525,7 @@ def main():
         print(simulate_nft_list(sort_by))
     elif command == "find" and len(args) > 1 and args[1] == "nft":
         keyword = args[2] if len(args) > 2 else ""
-        print(simulate_nft_search(keyword))  
+        print(simulate_nft_search(keyword))
 
     else:
         print(f"> {' '.join(args)}\nUnknown command. Type help to see available options.")

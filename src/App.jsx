@@ -67,8 +67,6 @@ const baseApiUrl = import.meta.env.PROD
   ? 'https://mon-terminal.onrender.com/api'
   : '/api'
 
-const degenApiUrl = `${baseApiUrl}/degen`
-
 function App() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
@@ -90,7 +88,6 @@ function App() {
   const [cooldownTimestamp, setCooldownTimestamp] = useState(null)
   const [nftResults, setNftResults] = useState(null)
   const [pendingSend, setPendingSend] = useState(null)
-  const [pendingDegen, setPendingDegen] = useState(null)
 
   const achievementNames = {
     green10: "Profit Initiate",
@@ -844,106 +841,8 @@ function App() {
             `❌ Unable to fetch NFTs: ${e.message}`
           ])
           setNftResults(null)
-        }
-        return  
-        
-      } else if (cmd === 'degen') {
-        // — Confirm path: “degen it”
-        if (sub === 'it') {
-          if (!pendingDegen) {
-            setTerminalLines(prev => [
-              ...prev.slice(0, -1),
-              '❌ No pending degen. First run: degen <amount> MON|WMON to <contractAddress>'
-            ])
-          } else {
-            setTerminalLines(prev => [...prev.slice(0, -1), '> Executing degen swap…'])
-            try {
-              const res = await fetch(`${degenApiUrl}/swap`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(pendingDegen)
-              })
-              const data = await res.json()
-              if (data.success) {
-                setTerminalLines(prev => [
-                  ...prev.slice(0, -1),
-                  `> 🚀 Degen swap sent! Tx: ${data.transaction.hash}`
-                ])
-              } else {
-                throw new Error(data.error)
-              }
-            } catch (err) {
-              setTerminalLines(prev => [
-                ...prev.slice(0, -1),
-                `❌ Degen confirm failed: ${err.message}`
-              ])
-            } finally {
-              setPendingDegen(null)
-            }
-          }
-          return
-        }
-      
-        // — Quote path: “degen <amt> <token> to <contractAddress>”
-        const amount       = sub
-        const symbol       = tokenArg?.toUpperCase()
-        const toKeyword    = rest[0]?.toLowerCase()
-        const contractAddr = rest[1]
-      
-        if (
-          !amount ||
-          !['MON','WMON'].includes(symbol) ||
-          toKeyword !== 'to' ||
-          !contractAddr
-        ) {
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            '❌ Usage: degen <amount> MON|WMON to <contractAddress>'
-          ])
-          return
-        }
-      
-        setTerminalLines(prev => [
-          ...prev.slice(0, -1),
-          `> Fetching degen quote for ${amount} ${symbol} → ${contractAddr}…`
-        ])
-      
-        try {
-          const res  = await fetch(`${degenApiUrl}/quote/${contractAddr}`)
-          const data = await res.json()
-          if (data.error) throw new Error(data.error)
-      
-          const price = Number(data.price) // MON per token
-          const receiveAmount = symbol === 'MON'
-            ? Number(amount) / price
-            : Number(amount) * price
-          const target = symbol === 'MON' ? 'WMON' : 'MON'
-      
-          // stash for confirmation
-          setPendingDegen({
-            from:   TOKEN_LIST.find(t => t.symbol === symbol).address,
-            to:     contractAddr,
-            amount: Number(amount),
-            sender: address
-          })
-      
-          // render like a swap quote
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            'Quote:',
-            `- You send:       ${amount} ${symbol}`,
-            `- You’ll receive: ${receiveAmount.toFixed(6)} ${target}`,
-            `- Price per unit: ${price.toFixed(6)} MON/${symbol}`,
-            'Type: degen it'
-          ])
-        } catch (err) {
-          setTerminalLines(prev => [
-            ...prev.slice(0, -1),
-            `❌ Failed to fetch degen quote: ${err.message}`
-          ])
-        }
-        return                            
-    
+        }        
+
       // ── Fallback Command ──
     } else {
       try {
