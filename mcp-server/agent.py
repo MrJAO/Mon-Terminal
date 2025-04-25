@@ -10,6 +10,9 @@ LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
 PENDING_DEGEN = {}
 
+DEGEN_API_URL = "https://mon-terminal.onrender.com/degen"
+
+
 # ─── Token symbol to contract address map ───
 TOKEN_ADDRESSES = {
     'MON':    "native",
@@ -72,7 +75,7 @@ def print_help():
 > show my nfts                                  <------ Show all your owned NFTs (with max limit)
 > send <amount> <token name> to <w-address>     <------ Send token to another wallet address
 > token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment
-> degen <amt> <mon or wmon>                     <------  Quote a Degen swap
+> degen <amount> <mon/wmon> to <CA>             <------  Quote a Degen swap
 > degen it                                      <------  Execute the quoted Degen swap
 """
 
@@ -454,10 +457,10 @@ def main():
 
     # ─── Degen (quote + confirm) ───
     elif command == "degen":
-        # user typed: degen it
-        if len(args) >= 2 and args[1].lower() == "it":
+        # — Confirm path: “degen it”
+        if len(args) > 1 and args[1].lower() == "it":
             if not PENDING_DEGEN:
-                print("❌ No pending degen. First run: degen <amount> MON|WMON")
+                print("❌ No pending degen. First run: degen <amount> MON|WMON to <contractAddress>")
                 return
             try:
                 resp = requests.post(
@@ -465,64 +468,63 @@ def main():
                     json=PENDING_DEGEN
                 )
                 data = resp.json()
-                if data.get("success") and "transaction" in data:
-                    tx = data["transaction"]
-                    print(f"🚀 Degen swap sent! Tx: {tx.get('hash', tx.get('rawTransaction','<unknown>'))}")
+                if data.get("success"):
+                    print(f"🚀 Degen swap sent! Tx: {data['transaction']['hash']}")
                 else:
-                    print(f"❌ Degen confirm error: {data.get('error','Missing tx data')}")
+                    print(f"❌ Degen confirm error: {data.get('error', 'Missing transaction data')}")
             except Exception as e:
                 print(f"❌ Failed to confirm degen swap: {e}")
             finally:
                 PENDING_DEGEN.clear()
             return
 
-        # otherwise: degen <amount> MON|WMON
-        if len(args) < 3:
-            print("❌ Usage: degen <amount> MON|WMON or degen it")
+        # — Quote path: “degen <amt> <token> to <contractAddress>”
+        if len(args) < 5 or args[3].lower() != "to":
+            print("❌ Usage: degen <amount> MON|WMON to <contractAddress>")
             return
 
-        amount = args[1]
-        token  = args[2].upper()
-        if token not in ("MON", "WMON"):
-            print("❌ Usage: degen <amount> MON|WMON")
+        amount       = args[1]
+        symbol       = args[2].upper()
+        contractAddr = args[4]
+
+        if symbol not in ("MON", "WMON"):
+            print("❌ Usage: degen <amount> MON|WMON to <contractAddress>")
             return
 
-        # 1) Fetch price from Nad.fun
-        token_addr = TOKEN_ADDRESSES[token]
         try:
-            resp = requests.get(
-                f"https://testnet-bot-api-server.nad.fun/token/market/{token_addr}"
-            )
+            print(f"🛰 Fetching degen quote for {amount} {symbol} → {contractAddr}…")
+            resp = requests.get(f"{DEGEN_API_URL}/quote/{contractAddr}")
             resp.raise_for_status()
-            market = resp.json()
-            price_per_token = float(market["price"])
+            quote = resp.json()
+            if quote.get("error"):
+                raise ValueError(quote["error"])
+
+            price   = float(quote["price"])   # MON per token
+            receive = (
+                float(amount) / price
+                if symbol == "MON"
+                else float(amount) * price
+            )
+            target = "WMON" if symbol == "MON" else "MON"
+
+            # stash for confirm
+            PENDING_DEGEN.clear()
+            PENDING_DEGEN.update({
+                "from":   TOKEN_ADDRESSES[symbol],
+                "to":     contractAddr,
+                "amount": amount,
+                "sender": WALLET_ADDRESS
+            })
+
+            # print quote with symbol
+            print("📊 Quote:")
+            print(f"- You send:       {amount} {symbol}")
+            print(f"- You’ll receive: {receive:.6f} {target}")
+            print(f"- Price per unit: {price:.6f} MON/{symbol}")
+            print("Type: degen it")
         except Exception as e:
-            print(f"❌ Failed to fetch market info: {e}")
-            return
-
-        # 2) Compute receive amount
-        receive_symbol = "WMON" if token == "MON" else "MON"
-        if token == "MON":
-            receive_amount = float(amount) / price_per_token
-        else:
-            receive_amount = float(amount) * price_per_token
-
-        # 3) Store pending quote
-        PENDING_DEGEN.clear()
-        PENDING_DEGEN.update({
-            "from":   token_addr,
-            "to":     TOKEN_ADDRESSES[receive_symbol],
-            "amount": amount,
-            "sender": WALLET_ADDRESS
-        })
-
-        # 4) Print quote summary
-        print(f"📝 Degen Quote ({token}→{receive_symbol}):")
-        print(f"- Price per token: {price_per_token:.6f} MON/{token}")
-        print(f"- You send:        {amount} {token}")
-        print(f"- You’ll receive:  {receive_amount:.6f} {receive_symbol}")
-        print("> Type: degen it to execute this swap")
-        return  
+            print(f"❌ Failed to fetch degen quote: {e}")
+        return
 
     # ────────── Swap Quote ──────────
     elif command == "swap" and len(args) >= 5 and args[3].lower() == "to":

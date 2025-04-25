@@ -6,7 +6,6 @@ import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
 import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import { useWalletClient } from 'wagmi'
 import TerminalFooter from './components/TerminalFooter';
-import DegenConfirmationModal from './components/DegenConfirmationModal'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
@@ -94,7 +93,6 @@ function App() {
   const [nftResults, setNftResults] = useState(null)
   const [pendingSend, setPendingSend] = useState(null)
   const [pendingDegen, setPendingDegen] = useState(null)
-  const [showDegenModal, setShowDegenModal] = useState(false)
 
   const achievementNames = {
     green10: "Profit Initiate",
@@ -857,48 +855,81 @@ function App() {
           if (!pendingDegen) {
             setTerminalLines(prev => [
               ...prev.slice(0, -1),
-              '❌ No pending degen. First run: degen <amount> MON|WMON'
+              '❌ No pending degen. First run: degen <amount> MON|WMON to <contractAddress>'
             ])
           } else {
-            // show modal or inline confirm
-            setShowDegenModal(true)
+            setTerminalLines(prev => [...prev.slice(0, -1), '> Executing degen swap…'])
+            try {
+              const res = await fetch(`${degenApiUrl}/confirm`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(pendingDegen)
+              })
+              const data = await res.json()
+              if (data.success) {
+                setTerminalLines(prev => [
+                  ...prev.slice(0, -1),
+                  `> 🚀 Degen swap sent! Tx: ${data.transaction.hash}`
+                ])
+              } else {
+                throw new Error(data.error)
+              }
+            } catch (err) {
+              setTerminalLines(prev => [
+                ...prev.slice(0, -1),
+                `❌ Degen confirm failed: ${err.message}`
+              ])
+            } finally {
+              setPendingDegen(null)
+            }
           }
           return
         }
       
-        // — Quote path: “degen <amt> <token>”
-        const amount = sub
-        const symbol = tokenArg?.toUpperCase()
-        if (!amount || !['MON','WMON'].includes(symbol)) {
+        // — Quote path: “degen <amt> <token> to <contractAddress>”
+        const amount       = sub
+        const symbol       = tokenArg?.toUpperCase()
+        const toKeyword    = rest[0]?.toLowerCase()
+        const contractAddr = rest[1]
+      
+        if (
+          !amount ||
+          !['MON','WMON'].includes(symbol) ||
+          toKeyword !== 'to' ||
+          !contractAddr
+        ) {
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
-            '❌ Usage: degen <amount> MON|WMON'
+            '❌ Usage: degen <amount> MON|WMON to <contractAddress>'
           ])
           return
         }
       
-        // 🛰 fetch price from Nad.fun
-        setTerminalLines(prev => [...prev.slice(0, -1), `> Fetching degen quote for ${amount} ${symbol}…`])
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          `> Fetching degen quote for ${amount} ${symbol} → ${contractAddr}…`
+        ])
+      
         try {
-          const res = await fetch(`${degenApiUrl}/quote/${symbol}`)
+          const res  = await fetch(`${degenApiUrl}/quote/${contractAddr}`)
           const data = await res.json()
           if (data.error) throw new Error(data.error)
       
-          const price = Number(data.price)       // price in MON per token
-          const target = symbol === 'MON' ? 'WMON' : 'MON'
+          const price = Number(data.price) // MON per token
           const receiveAmount = symbol === 'MON'
-            ? (Number(amount) / price)
-            : (Number(amount) * price)
+            ? Number(amount) / price
+            : Number(amount) * price
+          const target = symbol === 'MON' ? 'WMON' : 'MON'
       
-          // stash for confirm
+          // stash for confirmation
           setPendingDegen({
-            from:  TOKEN_LIST.find(t => t.symbol === symbol).address,
-            to:    TOKEN_LIST.find(t => t.symbol === target).address,
-            amount,
+            from:   TOKEN_LIST.find(t => t.symbol === symbol).address,
+            to:     contractAddr,
+            amount: Number(amount),
             sender: address
           })
       
-          // render exactly like your swap quote (so it picks up the same .mcp-output-box styling)
+          // render like a swap quote
           setTerminalLines(prev => [
             ...prev.slice(0, -1),
             'Quote:',
@@ -913,7 +944,7 @@ function App() {
             `❌ Failed to fetch degen quote: ${err.message}`
           ])
         }
-        return                     
+        return                            
     
       // ── Fallback Command ──
     } else {
@@ -1081,12 +1112,6 @@ function App() {
             </button>
           )}
         </div>
-
-        <DegenConfirmationModal
-        isOpen={showDegenModal}
-        params={pendingDegen}
-        onClose={() => setShowDegenModal(false)}
-        />
 
       {/*  ── our new pixel‐buttons + robot footer ── */}
       <TerminalFooter />
