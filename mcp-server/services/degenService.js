@@ -1,14 +1,15 @@
 // mcp-server/services/degenService.js
 import fetch from 'node-fetch';
 
+// Upstream Nad.fun API base URL (set via env, e.g. https://api.nad.fun)
 const DEGEN_BASE =
   process.env.DEGEN_API_URL ||
-  'https://mon-terminal.onrender.com/api/degen';
+  'https://api.nad.fun';
 
 /**
- * Fetch a quote for degen swaps from your degen endpoint.
- * @param {string} contractAddress
- * @returns {Promise<{ price: string, error?: string, ... }>}  
+ * Fetch a quote for degen swaps from the Nad.fun endpoint.
+ * @param {string} contractAddress - The market contract address to quote.
+ * @returns {Promise<{ price: string, error?: string }>}  
  */
 export async function getQuote(contractAddress) {
   const url = `${DEGEN_BASE}/quote/${contractAddress}`;
@@ -21,12 +22,12 @@ export async function getQuote(contractAddress) {
 }
 
 /**
- * Submit a confirmed degen swap to your degen endpoint.
- * @param {object} payload
- * @returns {Promise<{ success: boolean, transaction?: { hash: string }, error?: string }> }
+ * Execute a confirmed degen swap via the Nad.fun endpoint.
+ * @param {object} payload - { from, to, amount, sender }
+ * @returns {Promise<{ success: boolean, transaction: { hash: string }, error?: string }>}  
  */
 export async function confirmSwap(payload) {
-  const url = `${DEGEN_BASE}/confirm`;
+  const url = `${DEGEN_BASE}/swap`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -34,7 +35,7 @@ export async function confirmSwap(payload) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Degen confirm failed (${res.status}): ${text}`);
+    throw new Error(`Swap confirm failed (${res.status}): ${text}`);
   }
   return res.json();
 }

@@ -10,7 +10,7 @@ LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
 PENDING_DEGEN = {}
 
-DEGEN_API_URL = "https://mon-terminal.onrender.com/api/degen"
+DEGEN_API_URL = "https://api.nad.fun"
 
 
 # ─── Token symbol to contract address map ───
@@ -85,9 +85,9 @@ def simulate_clear():
 def analyze_wallet(address):
     try:
         # 1️⃣ Total transactions
-        tx_resp = requests.post(
-            "https://mon-terminal.onrender.com/api/analyze/tx-count",
-            json={"address": address}
+        resp = requests.post(
+            f"{DEGEN_API_URL}/swap",
+            json=PENDING_DEGEN
         )
         tx_resp.raise_for_status()
         total = tx_resp.json().get("totalTxCount", 0)

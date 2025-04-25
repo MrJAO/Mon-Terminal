@@ -67,7 +67,7 @@ const baseApiUrl = import.meta.env.PROD
   ? 'https://mon-terminal.onrender.com/api'
   : '/api'
 
-const degenApiUrl = `${baseApiUrl}/degen`
+const DEGEN_BASE = import.meta.env.VITE_DEGEN_API_URL || 'https://api.nad.fun'
 
 function App() {
   const { address, isConnected } = useAccount()
@@ -909,7 +909,7 @@ function App() {
         ])
       
         try {
-          const res  = await fetch(`${degenApiUrl}/quote/${contractAddr}`)
+          const res  = await fetch(`${DEGEN_BASE}/quote/${contractAddr}`)
           const data = await res.json()
           if (data.error) throw new Error(data.error)
       
