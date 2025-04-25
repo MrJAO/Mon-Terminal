@@ -1,15 +1,9 @@
-[phases.setup]
-nixPkgs = ['python311Full', 'nodejs']
-
-[phases.build]
-cmds = [
-  "python3 -m venv venv",
-  "./venv/bin/python -m ensurepip --upgrade",
-  "./venv/bin/pip install requests"
+[setup]
+nixPkgs = [
+  'nodejs',
+  'python311Full',
+  'python311Packages.requests'
 ]
 
 [start]
 cmd = "node index.js"
-
-[shell]
-setup = "source ./venv/bin/activate"
