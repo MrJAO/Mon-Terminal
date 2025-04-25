@@ -9,11 +9,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy package files and install Node dependencies
-COPY mcp-server/package*.json ./
+COPY package*.json ./
 RUN npm install
 
 # Copy the rest of the app
-COPY mcp-server/ ./
+COPY . ./
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir requests
