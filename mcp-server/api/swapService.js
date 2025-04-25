@@ -1,6 +1,6 @@
 // api/swapService.js
 import fetch from 'node-fetch'
-import { BigNumber } from 'ethers'
+import { ethers } from 'ethers'
 
 export async function buildSwap({ from, to, amount, sender, gasLimitOverride }) {
   const {
@@ -50,7 +50,7 @@ export async function buildSwap({ from, to, amount, sender, gasLimitOverride }) 
 
   // determine gasLimit (in hex) from override or default
   const defaultGas = process.env.DEFAULT_GAS_LIMIT || '250000'
-  const gasLimit = BigNumber
+  const gasLimit = ethers.BigNumber
     .from(gasLimitOverride || defaultGas)
     .toHexString()
 
