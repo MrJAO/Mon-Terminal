@@ -1,12 +1,53 @@
-# React + Vite
+# 🤖 MON TERMINAL
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A pixel-styled terminal interface for exploring and interacting with the Monad Testnet.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 How to Use
 
-## Expanding the ESLint configuration
+1. **Connect Wallet**
+2. Type any command into the terminal (e.g. `help`, `check pnl MON 1 to USDC`)
+3. Watch it light up like a retro CRT 🤖
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## 🧾 Available Commands
+
+> **help**                                           — Show command help menu  
+> **analyze**                                        — Analyze wallet Token and NFT interactions  
+> **check balance <token>**                          — View token balance  
+> **check pnl <token> 1 to USDC**                    — Simulate PnL from recent token performance  
+> **record stats**                                   — Record your last PnL on-chain (24h cooldown)  
+> **achievements**                                   — View your unlocked achievements  
+> **mint <achievement_name>**                        — Mint a soulbound achievement NFT  
+> **best price for <token> 1 to USDC**               — Compare DEX prices  
+> **swap <token> <amt> to <token>**                  — Quote a token swap  
+> **confirm <token> <amt> to <token>**               — Execute a quoted swap  
+> **show my nfts**                                   — Display your NFTs  
+> **send <amt> <token> to <wallet>**                 — Send token to another wallet  
+> **token report <token> 1 to USDC**                 — View 7-day history and sentiment  
+
+---
+
+## 📦 Tech Stack
+
+- ⚛️ **Frontend**: React + Vite  
+- 🎨 **Styling**: Retro pixel-art CSS (CRT-inspired)  
+- 🔐 **Wallet**: wagmi + ethers.js  
+- 📊 **Charting**: Recharts  
+- 🛠 **Backend**: Node.js + Express (Render-hosted)  
+- 🌐 **APIs**: Alchemy, Monorail, custom integrations  
+
+---
+
+## 🧑‍💻 Maintainer
+
+Made with 💜 by [@CryptoModJAO](https://x.com/CryptoModJAO)  
+Feel free to tag me for feedback, suggestions, or bug reports.
+
+---
+
+## 🧪 Try it Live
+
+👉 [mon-terminal.xyz](https://www.mon-terminal.xyz)
