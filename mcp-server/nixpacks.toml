@@ -1,8 +1,10 @@
 [phases.setup]
-nixPkgs = ['python311Full', 'python311Packages.pip', 'nodejs']
+nixPkgs = ['python311', 'nodejs']
 
 [phases.install]
 cmds = [
+  "curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py",
+  "python3 get-pip.py",
   "python3 -m pip install -r requirements.txt"
 ]
 
