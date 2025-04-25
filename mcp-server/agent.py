@@ -71,7 +71,7 @@ def print_help():
 > mint <achievement_name>                       <------ Mint a soulbound achievement NFT
 > best price for <token name> 1 to USDC         <------ Compare DEX prices for a token
 > swap <token name> <amount> to <token name>    <------ Quote a token swap (e.g. swap MON 1 to USDC)
-> confirm <token name> <amount> to <token name> <------ Execute a quoted swap
+> confirm <token name> <amount> to <token name>  <------ Execute a quoted swap
 > show my nfts                                  <------ Show all your owned NFTs (with max limit)
 > send <amount> <token name> to <w-address>     <------ Send token to another wallet address
 > token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment
