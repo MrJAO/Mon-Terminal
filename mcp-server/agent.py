@@ -80,7 +80,7 @@ def analyze_wallet(address):
     try:
         # 1️⃣ Total transactions
         tx_resp = requests.post(
-            "https://mon-terminal.onrender.com/api/analyze/tx-count",
+            "https://mon-terminal-production.up.railway.app/api/analyze/tx-count",
             json={"address": address}
         )
         tx_resp.raise_for_status()
@@ -98,7 +98,7 @@ def analyze_wallet(address):
 
         # 2️⃣ Token interactions
         ts_resp = requests.post(
-            "https://mon-terminal.onrender.com/api/analyze/token-stats",
+            "https://mon-terminal-production.up.railway.app/api/analyze/token-stats",
             json={"address": address}
         )
         ts_resp.raise_for_status()
@@ -106,7 +106,7 @@ def analyze_wallet(address):
 
         # 3️⃣ NFT holdings
         nft_resp = requests.post(
-            "https://mon-terminal.onrender.com/api/analyze/nft-holdings",
+            "https://mon-terminal-production.up.railway.app/api/analyze/nft-holdings",
             json={"address": address}
         )
         nft_resp.raise_for_status()
@@ -139,7 +139,7 @@ def analyze_wallet(address):
 
 def simulate_check_balance(token):
     try:
-        response = requests.post("https://mon-terminal.onrender.com/api/balance", json={
+        response = requests.post("https://mon-terminal-production.up.railway.app/api/balance", json={
             "address": WALLET_ADDRESS,
             "token": token
         })
@@ -159,7 +159,7 @@ def simulate_check_pnl(token, amount, dest):
             "amount": str(amount),
             "to": dest.upper()
         }
-        resp = requests.post("https://mon-terminal.onrender.com/api/pnl", json=payload)
+        resp = requests.post("https://mon-terminal-production.up.railway.app/api/pnl", json=payload)
         data = resp.json()
         if data.get("success"):
             e = data["data"]
@@ -176,7 +176,7 @@ def simulate_check_pnl(token, amount, dest):
 
 def simulate_record_stats():
     try:
-        response = requests.post("https://mon-terminal.onrender.com/api/record-stat", json={
+        response = requests.post("https://mon-terminal-production.up.railway.app/api/record-stat", json={
             "address": WALLET_ADDRESS,
             "pnl": 69.42  # You may dynamically get PnL if needed
         })
@@ -190,7 +190,7 @@ def simulate_record_stats():
 
 def simulate_achievements():
     try:
-        response = requests.get(f"https://mon-terminal.onrender.com/api/achievements/{WALLET_ADDRESS}")
+        response = requests.get(f"https://mon-terminal-production.up.railway.app/api/achievements/{WALLET_ADDRESS}")
         data = response.json()
         if data.get("success"):
             unlocked = [achievementNames[id] for id, ok in data["achievements"].items() if ok]
@@ -210,7 +210,7 @@ def simulate_mint(ach_id):
     if not label:
         return f"❌ Unknown achievement ID '{ach_id}'."
     try:
-        response = requests.post("https://mon-terminal.onrender.com/api/achievements/mint", json={
+        response = requests.post("https://mon-terminal-production.up.railway.app/api/achievements/mint", json={
             "address": WALLET_ADDRESS,
             "id": ach_id,
             "label": label
@@ -226,7 +226,7 @@ def simulate_mint(ach_id):
 def simulate_token_report(token, amount, dest):
     try:
         resp = requests.post(
-            "https://mon-terminal.onrender.com/api/token-report",
+            "https://mon-terminal-production.up.railway.app/api/token-report",
             json={"symbol": token.upper()}
         )
         data = resp.json()
@@ -266,7 +266,7 @@ def simulate_best_price(token, amount, dest):
             "to": dest.upper(),
             "sender": WALLET_ADDRESS
         }
-        resp = requests.post("https://mon-terminal.onrender.com/api/best-price", json=payload)
+        resp = requests.post("https://mon-terminal-production.up.railway.app/api/best-price", json=payload)
         data = resp.json()
         if data.get("success"):
             d = data["data"]
@@ -289,7 +289,7 @@ def fetch_nfts(identifier='all'):
     """
     try:
         resp = requests.post(
-            "https://mon-terminal.onrender.com/api/checkNFT",
+            "https://mon-terminal-production.up.railway.app/api/checkNFT",
             json={"owner": WALLET_ADDRESS, "command": "my nfts", "type": identifier}
         )
         if resp.status_code != 200:
@@ -464,7 +464,7 @@ def main():
             return
 
         try:
-            resp = requests.post("https://mon-terminal.onrender.com/api/track/quote", json={
+            resp = requests.post("https://mon-terminal-production.up.railway.app/api/track/quote", json={
                 "from":   from_token,
                 "to":     to_token,
                 "amount": amount,
@@ -501,7 +501,7 @@ def main():
             return
 
         try:
-            resp = requests.post("https://mon-terminal.onrender.com/api/track/confirm", json=LAST_SWAP_QUOTE)
+            resp = requests.post("https://mon-terminal-production.up.railway.app/api/track/confirm", json=LAST_SWAP_QUOTE)
             data = resp.json()
             if data.get("success") and "transaction" in data:
                 tx = data["transaction"]

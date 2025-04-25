@@ -69,7 +69,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://mon-terminal.onrender.com',
+        target: 'https://mon-terminal-production.up.railway.app',
         changeOrigin: true,
         secure: false,
       },

@@ -64,7 +64,7 @@ const renderNFTs = (nfts, sortBy) => {
 const MON_TERMINAL_ADDRESS = import.meta.env.VITE_MON_TERMINAL_ADDRESS
 const ACHIEVEMENT_ADDRESS = import.meta.env.VITE_ACHIEVEMENT_NFT_ADDRESS
 const baseApiUrl = import.meta.env.PROD
-  ? 'https://mon-terminal.onrender.com/api'
+  ? 'https://mon-terminal-production.up.railway.app/api'
   : '/api'
 
 function App() {
