@@ -714,22 +714,15 @@ function App() {
     }
     
     // ── Stake ──
-    else if (cmd === 'stake' && !sub) {
-      // no token specified: list options
-      setTerminalLines(prev => [
-        ...prev.slice(0, -1),
-        'Available staking tokens: aprMON, gMON, sMON',
-        'Type: stake <token> <amount>'
-      ]);
-      return;
-    }
-
     else if (cmd === 'stake' && sub && tokenArg) {
       const type     = sub;                // 'aprMON' | 'gMON' | 'sMON'
-      const amount   = tokenArg;           // human-readable, e.g. "1.5"
+      const amount   = tokenArg;           // human amount, e.g. "1.5"
       const receiver = rest[0] || address; // default to your own wallet
 
-      setTerminalLines(prev => [...prev.slice(0, -1), 'Building stake transaction…']);
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        'Building stake transaction…'
+      ]);
 
       try {
         const res  = await fetch(`${baseApiUrl}/stake`, {
@@ -740,7 +733,7 @@ function App() {
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Unknown stake error');
 
-        // store the unsigned tx
+        // store the payload AND the type
         setLastStakeTx({
           type,
           functionName: data.transaction.functionName,
@@ -759,6 +752,7 @@ function App() {
           `❌ Stake build failed: ${err.message}`
         ]);
       }
+
       return;
     }
 
@@ -772,16 +766,14 @@ function App() {
         return;
       }
 
-      setTerminalLines(prev => [...prev.slice(0, -1), 'Confirming stake…']);
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        'Confirming stake…'
+      ]);
 
       try {
-        // convert string ABIs into Fragment objects
-        const abiFragments = STAKE_ABIS[lastStakeTx.type].map(sig =>
-          ethers.utils.Fragment.from(sig)
-        );
-
         const hash = await writeContractAsync({
-          abi:          abiFragments,
+          abi:          STAKE_ABIS[lastStakeTx.type],
           address:      STAKE_CONTRACT_ADDRESSES[lastStakeTx.type],
           functionName: lastStakeTx.functionName,
           args:         lastStakeTx.args,
