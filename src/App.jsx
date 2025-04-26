@@ -714,6 +714,16 @@ function App() {
     }
     
     // ── Stake ──
+    else if (cmd === 'stake' && !sub) {
+      // no token specified: list options
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        'Available staking tokens: aprMON, gMON, sMON',
+        'Type: stake <token> <amount>'
+      ]);
+      return;
+    }
+
     else if (cmd === 'stake' && sub && tokenArg) {
       const type     = sub;                // 'aprMON' | 'gMON' | 'sMON'
       const amount   = tokenArg;           // human amount, e.g. "1.5"
