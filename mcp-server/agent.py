@@ -63,21 +63,32 @@ def _save_cooldowns(data):
 
 def print_help():
     return """Available Mon Terminal Commands:
-> help                                          <------ Show command help menu
-> analyze                                       <------ Analyze wallet Token and NFT interactions 
-> check balance <token name>                    <------ View token balance for connected wallet
-> check pnl <token name> 1 to USDC              <------ View actual PnL from recent token transactions
-> record stats                                  <------ Record your last PnL on-chain (24h cooldown)
-> achievements                                  <------ View your unlocked achievements
-> mint <achievement_name>                       <------ Mint a soulbound achievement NFT
-> best price for <token name> 1 to USDC         <------ Compare DEX prices for a token
-> swap <token name> <amount> to <token name>    <------ Quote a token swap (e.g. swap MON 1 to USDC)
-> confirm <token name> <amount> to <token name>  <------ Execute a quoted swap
-> show my nfts                                  <------ Show all your owned NFTs (with max limit)
-> send <amount> <token name> to <w-address>     <------ Send token to another wallet address
-> token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment
-> stake                                         <------ Will show 3 staking options
-> confirm-stake                                  <------ To execute your transaction after the wallet confirmation
+>-------------------------------------------------------------------------------------------------------------------
+> help                                          <------ Show command help menu                                     |
+>-------------------------------------------------------------------------------------------------------------------
+> swap <token name> <amount> to <token name>    <------ Quote a token swap (e.g. swap MON 1 to USDC)               |
+> confirm <token name> <amount> to <token name>  <------ Execute a quoted swap                                     |
+>-------------------------------------------------------------------------------------------------------------------
+> stake                                         <------ Will show 3 staking options                                |
+> confirm-stake                                  <------ To execute your transaction after the wallet confirmation |
+>-------------------------------------------------------------------------------------------------------------------
+> send <amount> <token name> to <w-address>     <------ Send token to another wallet address                       |
+>-------------------------------------------------------------------------------------------------------------------
+> check pnl <token name> 1 to USDC              <------ View actual PnL from recent token transactions             |
+> record stats                                  <------ Record your last PnL on-chain (24h cooldown)               |
+>-------------------------------------------------------------------------------------------------------------------
+> achievements                                  <------ View your unlocked achievements                            |
+> mint <achievement_name>                       <------ Mint a soulbound achievement NFT                           |
+>-------------------------------------------------------------------------------------------------------------------
+> analyze                                       <------ Analyze wallet Token and NFT interactions                  |
+>-------------------------------------------------------------------------------------------------------------------
+> check balance <token name>                    <------ View token balance for connected wallet                    |
+>-------------------------------------------------------------------------------------------------------------------
+> show my nfts                                  <------ Show all your owned NFTs (with max limit)                  |
+>-------------------------------------------------------------------------------------------------------------------
+> best price for <token name> 1 to USDC         <------ Compare DEX prices for a token                             |
+> token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment                   |
+>-------------------------------------------------------------------------------------------------------------------
 """
 
 def simulate_clear():
