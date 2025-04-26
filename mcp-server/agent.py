@@ -62,33 +62,79 @@ def _save_cooldowns(data):
         json.dump(data, f)
 
 def print_help():
-    return """Available Mon Terminal Commands:
->-------------------------------------------------------------------------------------------------------------------
-> help                                          <------ Show command help menu                                     |
->-------------------------------------------------------------------------------------------------------------------
-> swap <token name> <amount> to <token name>    <------ Quote a token swap (e.g. swap MON 1 to USDC)               |
-> confirm <token name> <amount> to <token name>  <------ Execute a quoted swap                                     |
->-------------------------------------------------------------------------------------------------------------------
-> stake                                         <------ Will show 3 staking options                                |
-> confirm-stake                                  <------ To execute your transaction after the wallet confirmation |
->-------------------------------------------------------------------------------------------------------------------
-> send <amount> <token name> to <w-address>     <------ Send token to another wallet address                       |
->-------------------------------------------------------------------------------------------------------------------
-> check pnl <token name> 1 to USDC              <------ View actual PnL from recent token transactions             |
-> record stats                                  <------ Record your last PnL on-chain (24h cooldown)               |
->-------------------------------------------------------------------------------------------------------------------
-> achievements                                  <------ View your unlocked achievements                            |
-> mint <achievement_name>                       <------ Mint a soulbound achievement NFT                           |
->-------------------------------------------------------------------------------------------------------------------
-> analyze                                       <------ Analyze wallet Token and NFT interactions                  |
->-------------------------------------------------------------------------------------------------------------------
-> check balance <token name>                    <------ View token balance for connected wallet                    |
->-------------------------------------------------------------------------------------------------------------------
-> show my nfts                                  <------ Show all your owned NFTs (with max limit)                  |
->-------------------------------------------------------------------------------------------------------------------
-> best price for <token name> 1 to USDC         <------ Compare DEX prices for a token                             |
-> token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment                   |
->-------------------------------------------------------------------------------------------------------------------
+    return """
+<style>
+.help-container {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border: 2px solid #7f00ff;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px auto;
+  font-family: 'Press Start 2P', monospace;
+  color: white;
+  font-size: 12px;
+  white-space: pre-wrap;
+  box-shadow: 0 0 15px #7f00ff, 0 0 30px #00fff7;
+  animation: pixelGlow 2s infinite alternate;
+  max-width: 800px;
+}
+
+.help-header {
+  font-size: 18px;
+  color: #00fff7;
+  text-align: center;
+  margin-bottom: 15px;
+  text-shadow: 0 0 5px #00fff7;
+}
+
+.help-line {
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #7f00ff;
+  padding-bottom: 5px;
+}
+
+/* Pixel glow animation */
+@keyframes pixelGlow {
+  from {
+    box-shadow: 0 0 10px #7f00ff, 0 0 20px #00fff7;
+  }
+  to {
+    box-shadow: 0 0 20px #7f00ff, 0 0 40px #00fff7;
+  }
+}
+
+/* 🧩 Responsive Improvements */
+@media (max-width: 600px) {
+  .help-container {
+    padding: 15px;
+    margin: 10px;
+    font-size: 10px;
+  }
+  .help-header {
+    font-size: 16px;
+  }
+}
+</style>
+
+<div class='help-container'>
+  <div class='help-header'>Available Mon Terminal Commands:</div>
+
+  <div class='help-line'>> help                                          <------ Show command help menu</div>
+  <div class='help-line'>> swap &lt;token&gt; &lt;amount&gt; to &lt;token&gt;              <------ Quote a token swap</div>
+  <div class='help-line'>> confirm &lt;token&gt; &lt;amount&gt; to &lt;token&gt;           <------ Execute a quoted swap</div>
+  <div class='help-line'>> stake                                         <------ Show staking options</div>
+  <div class='help-line'>> confirm-stake                                 <------ Confirm your staking transaction</div>
+  <div class='help-line'>> send &lt;amount&gt; &lt;token&gt; to &lt;address&gt;            <------ Send token to wallet</div>
+  <div class='help-line'>> check pnl &lt;token&gt; 1 to USDC                   <------ View your PnL</div>
+  <div class='help-line'>> record stats                                  <------ Record your PnL on-chain</div>
+  <div class='help-line'>> achievements                                  <------ View your unlocked achievements</div>
+  <div class='help-line'>> mint &lt;achievement_name&gt;                       <------ Mint an achievement NFT</div>
+  <div class='help-line'>> analyze                                       <------ Analyze wallet token/NFT interactions</div>
+  <div class='help-line'>> check balance &lt;token&gt;                         <------ View token balance</div>
+  <div class='help-line'>> show my nfts                                  <------ Show all your NFTs</div>
+  <div class='help-line'>> best price for &lt;token&gt; 1 to USDC              <------ Compare DEX prices</div>
+  <div class='help-line'>> token report &lt;token&gt; 1 to USDC                <------ 7-day price report & sentiment</div>
+</div>
 """
 
 def simulate_clear():
