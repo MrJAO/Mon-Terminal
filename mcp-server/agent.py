@@ -9,6 +9,7 @@ _COOLDOWN_FILE = "cooldowns.json"
 _COOLDOWN_SECONDS = 24 * 60 * 60
 LAST_SWAP_QUOTE = {}
 PENDING_SEND = {}
+LAST_STAKE_TX = {}
 
 BASE_URL = "https://mon-terminal-production.up.railway.app/api"
 DEFAULT_GAS_LIMIT = os.getenv("DEFAULT_GAS_LIMIT", "250000")
@@ -75,6 +76,8 @@ def print_help():
 > show my nfts                                  <------ Show all your owned NFTs (with max limit)
 > send <amount> <token name> to <w-address>     <------ Send token to another wallet address
 > token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment
+> stake                                         <------ Will show 3 staking options
+> confirm-stake                                 <------ To execute your transaction after the wallet confirmation
 """
 
 def simulate_clear():
@@ -374,6 +377,20 @@ def simulate_nft_search(keyword):
         lines.append(f"- {m['name']} (Contract: {m['contract']}, ID: {m['id']})")
     return "\n".join(lines)
 
+def simulate_stake(type, amount, receiver):
+    resp = requests.post(f"{BASE_URL}/stake", json={
+        "type": type,
+        "amount": amount,
+        "sender": WALLET_ADDRESS,
+        "receiver": receiver
+    })
+    data = resp.json()
+    if data.get("success"):
+        tx = data["transaction"]
+        return f"Built stake payload: {tx}"
+    else:
+        return f"❌ Stake error: {data.get('error')}"
+
 def main():
     args = sys.argv[1:]
     if not args:
@@ -452,6 +469,54 @@ def main():
         finally:
             PENDING_SEND = {}
         return
+
+    # ────────── Stake ──────────
+    elif command == "stake" and len(args) >= 3:
+        # args: [ "stake", "<aprMON|gMON|sMON>", "<amount>", "[receiver]" ]
+        token_key = args[1]    # aprMON, gMON or sMON
+        amount    = args[2]    # human amount, e.g. "1.5"
+        receiver  = args[3] if len(args) > 3 else WALLET_ADDRESS
+
+        # build the transaction via your backend
+        try:
+            resp = requests.post(f"{BASE_URL}/stake", json={
+                "type":     token_key,
+                "amount":   amount,
+                "sender":   WALLET_ADDRESS,
+                "receiver": receiver
+            })
+            data = resp.json()
+            if not data.get("success"):
+                print(f"❌ Stake error: {data.get('error')}")
+                return
+
+            tx = data["transaction"]
+            global LAST_STAKE_TX
+            LAST_STAKE_TX = tx
+
+            print("🚀 Stake transaction built:")
+            print(f"- To:            {tx['to']}")
+            print(f"- Function:      {tx['functionName']}")
+            print(f"- Args:          {tx['args']}")
+            print(f"- Value (wei):   {tx.get('value', '0')}")
+            print(f"- GasLimit:      {tx['gasLimit']}")
+            print("\nType `confirm-stake` to broadcast this transaction.")
+        except Exception as e:
+            print(f"❌ Failed to build stake tx: {str(e)}")
+        return
+
+    # ────────── Confirm Stake ──────────
+    elif command == "confirm-stake":
+        if not LAST_STAKE_TX:
+            print("❌ No stake ready. First run: stake <token> <amount> [receiver]")
+            return
+
+        # Echo the saved transaction payload for the Wagmi front-end
+        print("🚀 Stake ready to send. Payload:")
+        print(json.dumps(LAST_STAKE_TX, indent=2))
+        print("\nNow switch to the web UI and type `confirm-stake` there to open your wallet and broadcast.")
+        LAST_STAKE_TX = {}
+        return 
 
     # ────────── Swap Quote ──────────
     elif command == "swap" and len(args) >= 5 and args[3].lower() == "to":

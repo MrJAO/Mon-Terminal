@@ -6,6 +6,7 @@ import { MON_TERMINAL_ABI } from './constants/MonTerminalABI'
 import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import { useWalletClient } from 'wagmi'
 import TerminalFooter from './components/TerminalFooter';
+import { STAKE_CONTRACT_ADDRESSES, STAKE_ABIS } from './api/stakeCA'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
@@ -89,6 +90,7 @@ function App() {
   const [cooldownTimestamp, setCooldownTimestamp] = useState(null)
   const [nftResults, setNftResults] = useState(null)
   const [pendingSend, setPendingSend] = useState(null)
+  const [lastStakeTx, setLastStakeTx] = useState(null)
 
   const achievementNames = {
     green10: "Profit Initiate",
@@ -709,7 +711,94 @@ function App() {
         setPendingSend(null)
       }
       return
-    }    
+    }
+    
+    // ── Stake ──
+    else if (cmd === 'stake' && !sub) {
+      // no token specified: list options
+      setTerminalLines(prev => [
+        ...prev.slice(0, -1),
+        'Available staking tokens: aprMON, gMON, sMON',
+        'Usage: stake <token> <amount> [receiver]'
+      ]);
+      return;
+    }
+
+    else if (cmd === 'stake' && sub && tokenArg) {
+      const type     = sub;                // 'aprMON' | 'gMON' | 'sMON'
+      const amount   = tokenArg;           // human-readable, e.g. "1.5"
+      const receiver = rest[0] || address; // default to your own wallet
+
+      setTerminalLines(prev => [...prev.slice(0, -1), 'Building stake transaction…']);
+
+      try {
+        const res  = await fetch(`${baseApiUrl}/stake`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ type, amount, sender: address, receiver })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Unknown stake error');
+
+        // store the unsigned tx
+        setLastStakeTx({
+          type,
+          functionName: data.transaction.functionName,
+          args:         data.transaction.args,
+          value:        data.transaction.value,
+          gasLimit:     data.transaction.gasLimit
+        });
+
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          '✅ Stake payload built. Type: confirm-stake'
+        ]);
+      } catch (err) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          `❌ Stake build failed: ${err.message}`
+        ]);
+      }
+      return;
+    }
+
+    // ── Confirm Stake ──
+    else if (cmd === 'confirm-stake') {
+      if (!lastStakeTx) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          '❌ No stake ready. First run: stake <token> <amount> [receiver]'
+        ]);
+        return;
+      }
+
+      setTerminalLines(prev => [...prev.slice(0, -1), 'Confirming stake…']);
+
+      try {
+        const hash = await writeContractAsync({
+          abi:          STAKE_ABIS[lastStakeTx.type],
+          address:      STAKE_CONTRACT_ADDRESSES[lastStakeTx.type],
+          functionName: lastStakeTx.functionName,
+          args:         lastStakeTx.args,
+          value:        lastStakeTx.value,
+          gasLimit:     lastStakeTx.gasLimit
+        });
+
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          `✅ Stake confirmed! Tx: https://testnet.monadexplorer.com/tx/${hash}`
+        ]);
+      } catch (err) {
+        setTerminalLines(prev => [
+          ...prev.slice(0, -1),
+          `❌ Confirm-stake failed: ${err.message}`
+        ]);
+      } finally {
+        setLastStakeTx(null);
+      }
+
+      return;
+    }  
     
     // ── Swap Quote ──
     else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
