@@ -719,8 +719,8 @@ function App() {
       // no token specified: list options
       setTerminalLines(prev => [
         ...prev.slice(0, -1),
-        'Available staking tokens: aprMON, gMON, sMON',
-        'Type: stake <token> <amount>'
+        'Available staking tokens: aprMON',
+        'Type: stake aprMON <amount>'
       ]);
       return;
     }
