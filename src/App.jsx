@@ -7,6 +7,7 @@ import ACHIEVEMENT_ABI from './constants/SimpleAchievementNFT.abi.json'
 import { useWalletClient } from 'wagmi'
 import TerminalFooter from './components/TerminalFooter';
 import { STAKE_CONTRACT_ADDRESSES, STAKE_ABIS } from './api/stakeCA'
+import { parseAbi } from 'abitype'
 import './App.css'
 import './Achievements.css'
 import './TokenReport.css'
@@ -772,39 +773,39 @@ function App() {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
           '❌ No stake ready. First run: stake <token> <amount> [receiver]'
-        ]);
-        return;
+        ])
+        return
       }
 
       setTerminalLines(prev => [
         ...prev.slice(0, -1),
         'Confirming stake…'
-      ]);
+      ])
 
       try {
         const hash = await writeContractAsync({
-          abi:          STAKE_ABIS[lastStakeTx.type],
-          address:      STAKE_CONTRACT_ADDRESSES[lastStakeTx.type],
-          functionName: lastStakeTx.functionName,
-          args:         lastStakeTx.args,
-          value:        lastStakeTx.value,
-          gasLimit:     lastStakeTx.gasLimit
-        });
+          abi:           parseAbi(STAKE_ABIS[lastStakeTx.type]),
+          address:       STAKE_CONTRACT_ADDRESSES[lastStakeTx.type],
+          functionName:  lastStakeTx.functionName,
+          args:          lastStakeTx.args,
+          value:         lastStakeTx.value,
+          gasLimit:      lastStakeTx.gasLimit
+        })
 
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
           `✅ Stake confirmed! Tx: https://testnet.monadexplorer.com/tx/${hash}`
-        ]);
+        ])
       } catch (err) {
         setTerminalLines(prev => [
           ...prev.slice(0, -1),
           `❌ Confirm-stake failed: ${err.message}`
-        ]);
+        ])
       } finally {
-        setLastStakeTx(null);
+        setLastStakeTx(null)
       }
 
-      return;
+      return
     }
     
     // ── Swap Quote ──
