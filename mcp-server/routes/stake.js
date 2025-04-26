@@ -38,7 +38,7 @@ router.post('/', async (req, res) => {
       case 'sMON':
         functionName = 'stake'
         args         = [amtStr]
-        value        = amtStr
+        value        = 0
         break
     }
 
