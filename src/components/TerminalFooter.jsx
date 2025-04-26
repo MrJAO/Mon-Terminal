@@ -17,6 +17,8 @@ const FAQS = [
   { id: 11, command: 'show my nfts', description: 'Will show all the user owned NFTs but have a maximum limit of 100' },
   { id: 12, command: 'send <amount> <token name> to <w-address>', description: 'e.g. send 1 dak to 0xd9F016e453dE48D877e3f199E8FA4aADca2E979C' },
   { id: 13, command: 'token report <token name> <amount> to <dest>', description: 'e.g. token report dak 1 to usdc, will show a 3–7 days historical report of the token (simulated result at the moment)' },
+  { id: 11, command: 'stake', description: 'Initiate the staking process, after that use e.g stake aprMON 1 then enter' },
+  { id: 11, command: 'confirm-stake', description: 'Execute the staking. Confirm the wallet confirmation to finalize the transaction' },
 ];
 
 export default function TerminalFooter() {

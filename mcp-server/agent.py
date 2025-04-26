@@ -12,7 +12,7 @@ PENDING_SEND = {}
 LAST_STAKE_TX = {}
 
 BASE_URL = "https://mon-terminal-production.up.railway.app/api"
-DEFAULT_GAS_LIMIT = os.getenv("DEFAULT_GAS_LIMIT", "250000")
+DEFAULT_GAS_LIMIT = os.getenv("DEFAULT_GAS_LIMIT", "500000")
 
 # ─── Token symbol to contract address map ───
 TOKEN_ADDRESSES = {
