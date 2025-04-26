@@ -77,7 +77,7 @@ def print_help():
 > send <amount> <token name> to <w-address>     <------ Send token to another wallet address
 > token report <token name> 1 to USDC           <------ 7-day price history, % change, sentiment
 > stake                                         <------ Will show 3 staking options
-> confirm-stake                                 <------ To execute your transaction after the wallet confirmation
+> confirm-stake                                  <------ To execute your transaction after the wallet confirmation
 """
 
 def simulate_clear():

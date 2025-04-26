@@ -719,7 +719,7 @@ function App() {
       setTerminalLines(prev => [
         ...prev.slice(0, -1),
         'Available staking tokens: aprMON, gMON, sMON',
-        'Usage: stake <token> <amount> [receiver]'
+        'Type: stake <token> <amount>'
       ]);
       return;
     }
@@ -775,8 +775,13 @@ function App() {
       setTerminalLines(prev => [...prev.slice(0, -1), 'Confirming stake…']);
 
       try {
+        // convert string ABIs into Fragment objects
+        const abiFragments = STAKE_ABIS[lastStakeTx.type].map(sig =>
+          ethers.utils.Fragment.from(sig)
+        );
+
         const hash = await writeContractAsync({
-          abi:          STAKE_ABIS[lastStakeTx.type],
+          abi:          abiFragments,
           address:      STAKE_CONTRACT_ADDRESSES[lastStakeTx.type],
           functionName: lastStakeTx.functionName,
           args:         lastStakeTx.args,
@@ -798,7 +803,7 @@ function App() {
       }
 
       return;
-    }  
+    }
     
     // ── Swap Quote ──
     else if (cmd === 'swap' && sub && tokenArg && rest[0] === 'to') {
