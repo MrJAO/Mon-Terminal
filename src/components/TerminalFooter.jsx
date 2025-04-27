@@ -50,6 +50,7 @@ export default function TerminalFooter() {
                   <li>Some of the information might be wrong and if it is kindly inform me using the X account attached on the lower right side of the website. Thank you ❤</li>
                   <li>I'm using a <span className="neon-green">FREE TIER</span> in my Render server so if it's inactive for a few minutes it will take around 1min to activate the server and response to the commands. Use <span className="neon-green">"help"</span> first just to be sure.</li>
                   <li>If <span className="neon-yellow">NETWORK FEE Alert</span> appear cancel the transaction. Your transaction will fail and you will waste around 2.7 MON for the gas fee.</li>
+                  <li><span className="neon-yellow">250,000</span> is my max Gas Limit so if the network current gas requirement exceed that it will fail to execute my swap and stake features. It helps to avoid paying high gas fee.</li>
                   <li>After using <span className="neon-green">"SHOW MY NFTs"</span>, use <span className="neon-green">"CLEAR"</span> to clear the terminal.</li>
                   <li><span className="neon-green">Check PnL</span>, <span className="neon-green">Best Price</span>, and <span className="neon-green">Token Report</span> results are currently using a simulated prices because I can't find API that support Monad Testnet token prices at the moment.</li>
                 </ul>

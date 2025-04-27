@@ -18,6 +18,9 @@ A pixel-styled terminal interface for exploring and interacting with the Monad T
 |---------------------------------------------------|---------------------------------------------|
 | **help**                                          | Show command help menu                      |
 | **analyze**                                       | Analyze wallet Token and NFT interactions   |
+| **stake**                                         | Initiate aPriori staking process            |
+| **stake aprMON <amt>**                            | Input how much MON you want to stake        |
+| **confirm-stake**                                 | Execute and finalize staking process        |
 | **check balance <token>**                         | View token balance                          |
 | **check pnl <token> 1 to USDC**                   | Simulate PnL from recent token performance  |
 | **record stats**                                  | Record your last PnL on-chain (24h cooldown)|
@@ -157,6 +160,17 @@ CMD ["node", "index.js"]
 ### Deploy Frontend to Vercel
 - Push `src/` changes to GitHub  
 - Vercel will auto-deploy your React app  
+
+---
+
+## 📚 Resources
+
+- [Monad Documentation](https://docs.monad.xyz/)
+- [Monorail MCP Server (GitHub)](https://github.com/monorail-xyz/mcp-server)
+- [Fast Agent (GitHub)](https://github.com/evalstate/fast-agent)
+- [Alchemy Token API Quickstart](https://docs.alchemy.com/reference/token-api-quickstart)
+- [Alchemy NFT API Quickstart](https://docs.alchemy.com/reference/nft-api-quickstart)
+- [Alchemy Transfers API Quickstart](https://docs.alchemy.com/reference/transfers-api-quickstart)
 
 ---
 
