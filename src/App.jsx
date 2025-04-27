@@ -63,7 +63,7 @@ const renderNFTs = (nfts, sortBy) => {
   )
 }
 
-const DEFAULT_GAS_LIMIT = import.meta.env.VITE_DEFAULT_GAS_LIMIT || '500000'
+const DEFAULT_GAS_LIMIT = import.meta.env.VITE_DEFAULT_GAS_LIMIT || '250000'
 const MON_TERMINAL_ADDRESS = import.meta.env.VITE_MON_TERMINAL_ADDRESS
 const ACHIEVEMENT_ADDRESS = import.meta.env.VITE_ACHIEVEMENT_NFT_ADDRESS
 const baseApiUrl = import.meta.env.PROD

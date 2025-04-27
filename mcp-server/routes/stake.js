@@ -51,7 +51,7 @@ router.post('/', async (req, res) => {
         functionName,
         args,
         value,                            // front-end can feed this to writeContractAsync
-        gasLimit:     process.env.DEFAULT_GAS_LIMIT || '500000',
+        gasLimit:     process.env.DEFAULT_GAS_LIMIT || '250000',
       }
     })
 

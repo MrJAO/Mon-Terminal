@@ -49,7 +49,7 @@ export async function buildSwap({ from, to, amount, sender, gasLimitOverride }) 
   }
 
   // determine gasLimit (in hex) from override or default
-  const defaultGas = process.env.DEFAULT_GAS_LIMIT || '500000'
+  const defaultGas = process.env.DEFAULT_GAS_LIMIT || '250000'
   const gasLimit = ethers.BigNumber
     .from(gasLimitOverride || defaultGas)
     .toHexString()
