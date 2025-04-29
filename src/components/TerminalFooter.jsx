@@ -5,7 +5,7 @@ import rickroll from './RickRoll.mp3';
 
 const FAQS = [
   { id: 1, command: 'help', description: 'Show the available commands' },
-  { id: 2, command: 'swap <token name> <amount> to <token name>', description: 'e.g. swap mon 1 to usdt' },
+  { id: 2, command: 'swap <token name> <amount> to <token name>', description: 'e.g. swap usdt 1 to usdc (except MON atm)' },
   { id: 3, command: 'confirm <token name> <amount> to <token name>', description: 'To execute your swap type "> confirm mon 1 to usdt", a wallet confirmation will appear to finalize your swap' },
   { id: 4, command: 'stake', description: 'Initiate the aPriori Staking process' },
   { id: 5, command: 'confirm-stake', description: 'Execute the staking. Confirm the wallet confirmation to finalize the transaction' }, 
@@ -48,7 +48,6 @@ export default function TerminalFooter() {
                 <div className="tf-faq-command neon-red">🛑 Important Notes</div>
                 <ul className="tf-important-list">
                   <li>Some of the information might be wrong and if it is kindly inform me using the X account attached on the lower right side of the website. Thank you ❤</li>
-                  <li>I'm using a <span className="neon-green">FREE TIER</span> in my Render server so if it's inactive for a few minutes it will take around 1min to activate the server and response to the commands. Use <span className="neon-green">"help"</span> first just to be sure.</li>
                   <li>If <span className="neon-yellow">NETWORK FEE Alert</span> appear cancel the transaction. Your transaction will fail and you will waste around 2.7 MON for the gas fee.</li>
                   <li><span className="neon-yellow">250,000</span> is my max Gas Limit so if the network current gas requirement exceed that it will fail to execute my swap and stake features. It helps to avoid paying high gas fee.</li>
                   <li>After using <span className="neon-green">"SHOW MY NFTs"</span>, use <span className="neon-green">"CLEAR"</span> to clear the terminal.</li>

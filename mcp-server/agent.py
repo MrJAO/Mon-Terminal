@@ -16,7 +16,7 @@ DEFAULT_GAS_LIMIT = os.getenv("DEFAULT_GAS_LIMIT", "250000")
 
 # ─── Token symbol to contract address map ───
 TOKEN_ADDRESSES = {
-    'MON':    "native",
+    'MON':    "0x0000000000000000000000000000000000000000",
     'USDC':   "0xf817257fed379853cDe0fa4F97AB987181B1e5Ea",
     'USDT':   "0x88b8E2161DEDC77EF4ab7585569D2415a1C1055D",
     'DAK':    "0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714",
@@ -66,7 +66,7 @@ def print_help():
 >-------------------------------------------------------------------------------------------------------------------
 > help                                          <------ Show command help menu                                     |
 >-                                              --------------------------------------------------------------------
-> swap <token name> <amount> to <token name>    <------ Quote a token swap (e.g. swap MON 1 to USDC)               |
+> swap <token name> <amount> to <token name>    <------ Quote a token swap (e.g. swap USDT 1 to USDC)(except MON)  |
 > confirm <token name> <amount> to <token name>  <------ Execute a quoted swap                                      |
 >-                                              --------------------------------------------------------------------
 > stake                                         <------ Initiate aPriori Staking process                           |
@@ -74,7 +74,7 @@ def print_help():
 >-                                              --------------------------------------------------------------------
 > send <amount> <token name> to <w-address>     <------ Send token to another wallet address                       |
 >-                                              --------------------------------------------------------------------
-> check pnl <token name> 1 to USDC              <------ View actual PnL from recent token transactions             |
+> check pnl <token name> 1 to USDC              <------ View PnL from recent token transactions                    |
 > record stats                                  <------ Record your last PnL on-chain (24h cooldown)               |
 >-                                              --------------------------------------------------------------------
 > achievements                                  <------ View your unlocked achievements                            |

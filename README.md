@@ -27,7 +27,7 @@ A pixel-styled terminal interface for exploring and interacting with the Monad T
 | **achievements**                                  | View your unlocked achievements             |
 | **mint <achievement_name>**                       | Mint a soulbound achievement NFT            |
 | **best price for <token> 1 to USDC**              | Compare DEX prices                          |
-| **swap <token> <amt> to <token>**                 | Quote a token swap                          |
+| **swap <token> <amt> to <token>**                 | Quote a token swap (except MON atm)         |
 | **confirm <token> <amt> to <token>**              | Execute a quoted swap                       |
 | **show my nfts**                                  | Display your NFTs                           |
 | **send <amt> <token> to <wallet>**                | Send token to another wallet                |
@@ -83,10 +83,6 @@ PORT=3001
 # Contract Addresses for Backend
 MON_TERMINAL_ADDRESS=0xD5fC940644e5527D97cAFede0BE9ce78F9067F33 (Record Stats Smart Contract)
 ACHIEVEMENT_NFT_ADDRESS=0x1f036DB021e447b083D8F3c9F875464d17fFd18F (Achievements Smart Contract)
-
-# Optional API endpoints
-degen
-DEGEN_API_URL=https://testnet-bot-api-server.nad.fun
 
 # Alchemy API
 ALCHEMY_API_KEY=Your API KEY
